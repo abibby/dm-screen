@@ -47,7 +47,6 @@ export const races = [
     'Tiefling',
     'Tortle',
     'Triton',
-    'Troglodyte',
     'Vedalken',
     'Viashino',
     'Warforged',

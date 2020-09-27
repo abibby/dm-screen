@@ -1,37 +1,46 @@
-import './checks.scss'
+import { Title } from 'components'
 import { checks } from 'lists/checks'
 import { FunctionalComponent, h } from 'preact'
 
+import styled from 'styled-components'
+
+const Table = styled.table`
+    border-collapse: collapse;
+    --color: pink;
+`
+const TaskTitle = styled.th`
+    background-color: var(--color);
+`
+const DC = styled.td`
+    white-space: nowrap;
+    background-color: var(--color);
+`
+
 export const Checks: FunctionalComponent = props => {
     return (
-        <div class='checks'>
-            <h1>Checks</h1>
+        <div>
+            <Title>Checks</Title>
             {checks.map(([title, tasks]) => (
                 <div>
                     <h2>{title}</h2>
-                    <table class='table'>
+                    <Table>
                         {tasks.map(([title, dcs]) => (
                             <tbody>
                                 <tr>
-                                    <th class='skill-title' colSpan={3}>
-                                        {title}
-                                    </th>
+                                    <TaskTitle colSpan={3}>{title}</TaskTitle>
                                 </tr>
                                 {dcs.map(([dificulty, dc, disc]) => (
                                     <tr>
                                         {dificulty && <td>{dificulty}</td>}
-                                        <td
-                                            class='dc'
-                                            colSpan={dificulty ? 1 : 2}
-                                        >
+                                        <DC colSpan={dificulty ? 1 : 2}>
                                             {dc}
-                                        </td>
+                                        </DC>
                                         <td>{disc}</td>
                                     </tr>
                                 ))}
                             </tbody>
                         ))}
-                    </table>
+                    </Table>
                 </div>
             ))}
         </div>

@@ -1,6 +1,8 @@
 import { FunctionalComponent, h } from 'preact'
 import { useCallback, useEffect, useState } from 'preact/hooks'
 import { generate, wtfCorpus } from 'lists'
+import styled from 'styled-components'
+import { Title } from 'components'
 
 export const CharacterGenerator: FunctionalComponent = props => {
     const [seed, setSeed] = useState(0)
@@ -9,8 +11,8 @@ export const CharacterGenerator: FunctionalComponent = props => {
 
     return (
         <div>
-            <h1>Character Generator</h1>
-            <button onClick={shuffle}>Shuffle</button>
+            <Title>WTF Character</Title>
+            <button onClick={shuffle}>New Character</button>
             <p>{generate(wtfCorpus, seed)}</p>
         </div>
     )
