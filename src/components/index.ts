@@ -3,7 +3,9 @@ import styled from 'styled-components'
 export const Title = styled.h2`
     background-color: black;
     color: white;
-    margin-top: 0;
+    margin-top: -5px;
+    margin-left: -5px;
+    margin-right: -5px;
     padding: 0 5px;
 `
 

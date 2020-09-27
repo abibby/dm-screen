@@ -56,7 +56,6 @@ export const wtfEstablishment: Corpus = {
         'content',
         'depressing',
         'dreamy',
-        'ecstatic',
         'energetic',
         'exciting',
         'frighting',

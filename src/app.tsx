@@ -4,6 +4,7 @@ import { Checks } from 'components/checks'
 import styled, { css } from 'styled-components'
 import { Travel } from 'components/travel'
 import { EstablishmentGenerator } from 'components/establishment-generator'
+import { CarousingGenerator } from 'components/carousing-generator'
 
 const Grid = styled.div`
     display: grid;
@@ -21,6 +22,7 @@ const Section = styled.div<SectionProps>`
     overflow: auto;
     box-shadow: 0px 0px 5px 0px rgba(0, 0, 0, 0.2);
     border-radius: 3px;
+    padding: 5px;
 
     ${props => css`
         grid-column: span ${props.width ?? 1};
@@ -41,6 +43,9 @@ render(
         </Section>
         <Section>
             <EstablishmentGenerator />
+        </Section>
+        <Section>
+            <CarousingGenerator />
         </Section>
     </Grid>,
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion

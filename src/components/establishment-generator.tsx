@@ -13,7 +13,7 @@ export const EstablishmentGenerator: FunctionalComponent = props => {
 
     return (
         <div>
-            <Title>Establishment</Title>{' '}
+            <Title>Establishment</Title>
             <button onClick={shuffle}>New Establishment</button>
             <p>{text}</p>
         </div>
