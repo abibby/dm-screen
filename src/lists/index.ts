@@ -1,20 +1,19 @@
 export * from './races'
 export * from './gods'
 export * from './alignments'
-export * from './wtf-dnd'
+export * from './wtf-character'
 
 type WeightedList = ReadonlyArray<readonly [number, string] | string>
 
-interface Corpus {
+export interface Corpus {
     template: WeightedList
     [key: string]: WeightedList | undefined
 }
 
-export function randomFromList(arr: WeightedList, seed?: number): string {
-    if (seed === undefined) {
-        seed = Math.random()
+export function randomFromList(arr: WeightedList): string {
+    if (arr.length === 0) {
+        return ''
     }
-
     const weightedArr = arr.map((e): readonly [number, string] => {
         if (typeof e === 'string') {
             return [1, e]
@@ -33,7 +32,7 @@ export function randomFromList(arr: WeightedList, seed?: number): string {
         string,
     ] => [(acc = weight + acc), e])
 
-    const rand = (seed * 12548458) % totalWeight
+    const rand = Math.random() * totalWeight
     return accumulatedArr[
         accumulatedArr.filter(([weight]) => weight <= rand).length
     ][1]
@@ -50,20 +49,20 @@ function buildRexExp(corpus: Corpus): RegExp {
     return new RegExp(`@(${types.join('|')})`, 'gi')
 }
 
-export function generate(corpus: Corpus, seed?: number): string {
+export function generate(corpus: Corpus): string {
     const regex = buildRexExp(corpus)
     let type: string
     let text: string
     let part: string
     let iter = 0 // Safety mechanism
-    let idea = randomFromList(corpus.template, seed)
+    let idea = randomFromList(corpus.template)
     let item = regex.exec(idea)
 
     while (item && ++iter < 1000) {
         type = item[0]
         text = item[1]
 
-        part = randomFromList(corpus[text] ?? [], seed)
+        part = randomFromList(corpus[text] ?? [])
         idea = idea.replace(type, part)
 
         regex.lastIndex = 0

@@ -1,19 +1,20 @@
 import { FunctionalComponent, h } from 'preact'
 import { useCallback, useEffect, useState } from 'preact/hooks'
-import { generate, wtfCorpus } from 'lists'
-import styled from 'styled-components'
+import { generate, wtfCharacter } from 'lists'
 import { Title } from 'components'
 
 export const CharacterGenerator: FunctionalComponent = props => {
-    const [seed, setSeed] = useState(0)
-    const shuffle = useCallback(() => setSeed(Math.random()), [setSeed])
+    const [text, setText] = useState('')
+    const shuffle = useCallback(() => setText(generate(wtfCharacter)), [
+        setText,
+    ])
     useEffect(() => shuffle(), [shuffle])
 
     return (
         <div>
-            <Title>WTF Character</Title>
+            <Title>Character</Title>
             <button onClick={shuffle}>New Character</button>
-            <p>{generate(wtfCorpus, seed)}</p>
+            <p>{text}</p>
         </div>
     )
 }
