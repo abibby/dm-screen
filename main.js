@@ -1810,6 +1810,53 @@ var strength = [
         ],
     ],
 ];
+var charisma = [
+    [
+        "Friendly Creature's Reaction",
+        [
+            [
+                '0',
+                'The creature does as asked without taking risks or making sacrifices.',
+            ],
+            [
+                '10',
+                'The creature accepts a minor risk or sacrifice to do as asked.',
+            ],
+            [
+                '20',
+                'The creature accepts a significant risk or sacrifice to do as asked.',
+            ],
+        ],
+    ],
+    [
+        "Indifferent Creature's Reaction",
+        [
+            ['0', 'The creature offers no help but does no harm.'],
+            [
+                '10',
+                'The creature does as asked as long as no risks or sacrifices are involved.',
+            ],
+            [
+                '20',
+                'The creature accepts a minor risk or sacrifice to do as asked.',
+            ],
+        ],
+    ],
+    [
+        "Hostile Creature's Reaction",
+        [
+            [
+                '0',
+                "The creature opposes the adventurers' actions and might take risks to do so.",
+            ],
+            ['10', 'The creature offers no help but does no harm.'],
+            [
+                '20',
+                'The creature does as asked as long as no risks or sacrifices are involved.',
+            ],
+        ],
+    ],
+];
 exports.Checks = function (props) {
     return (preact_1.h("div", null,
         preact_1.h(components_1.Title, null, "Checks"),
@@ -1825,6 +1872,17 @@ exports.Checks = function (props) {
                     preact_1.h("th", null, "Difficulty"),
                     preact_1.h("th", null, "DC"))),
             preact_1.h("tbody", null, toTable(difficulty))),
+        preact_1.h(components_1.Table, null,
+            preact_1.h("thead", null,
+                preact_1.h("tr", null,
+                    preact_1.h("th", { colSpan: 2 }, "Charisma"))),
+            charisma.map(function (_a) {
+                var relationship = _a[0], tbl = _a[1];
+                return (preact_1.h("tbody", null,
+                    preact_1.h("tr", null,
+                        preact_1.h("th", { colSpan: 2 }, relationship)),
+                    toTable(tbl)));
+            })),
         strength.map(function (_a) {
             var skill = _a[0], examples = _a[1];
             return (preact_1.h("div", null,
@@ -2821,8 +2879,8 @@ exports["default"] = effects;
 exports.__esModule = true;
 exports.gods = void 0;
 exports.gods = [
-    [10, 'Rijndael (wind)'],
-    [10, 'Yavanna (land)'],
+    [20, 'Rijndael (wind)'],
+    [20, 'Yavanna (land)'],
     [10, 'Ulmo (sea)'],
     [10, 'The Twins (light and dark)'],
     [10, 'Virth (seasons)'],
@@ -2962,41 +3020,32 @@ exports.races = [
     'Deep Gnome',
     'Goblin',
     'Goliath',
-    'Grung',
     'Half-Elf',
     'Halfling',
     'Half-Orc',
     'Hobgoblin',
     'Human',
-    'Kalashtar',
     'Kenku',
-    'Khenra',
+    'Khenra (jackal person)',
     'Kobold',
-    'Kor',
-    'Kuo-Toa',
     'Leonin',
     'Lizardfolk',
-    'Locathah',
     'Loxodon',
     'Merfolk',
     'Minotaur',
     'Naga',
     'Orc',
-    'Revenant',
     'Satyr',
     'Shifter',
     'Simic Hybrid',
-    'Siren',
-    'Skeleton',
+    [0.1, 'Skeleton'],
     'Tabaxi',
     'Tiefling',
     'Tortle',
     'Triton',
-    'Vedalken',
-    'Viashino',
     'Warforged',
     'Yuan-ti Pureblood',
-    'Zombie',
+    [0.1, 'Zombie'],
     'Man-Horse',
 ];
 
@@ -3578,7 +3627,7 @@ exports.wtfCharacter = {
         'names every piece of their gear',
         'is a complete exhibitionist',
         'always thinks outside the box',
-        'accidentally torched the local temple and is now cursed by its god',
+        'accidentally torched the local temple and is now cursed by its god, @god',
         'carries a cryptic treasure map they won in a tavern bet',
         'has been exiled twice under different names',
         'believes they have a claim to the throne',
@@ -3936,7 +3985,6 @@ exports.wtfEstablishment = {
         'noisy',
         'sweet',
         'enjoyable',
-        'non-deafening',
         'tacit',
         'faint',
         'penetrating',
