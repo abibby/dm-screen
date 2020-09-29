@@ -3,28 +3,33 @@ export * from './gods'
 export * from './alignments'
 export * from './wtf-character'
 
-type WeightedList = ReadonlyArray<readonly [number, string] | string>
+export type WeightedList = ReadonlyArray<readonly [number, string] | string>
 
 export interface Corpus {
     template: WeightedList
     [key: string]: WeightedList | undefined
 }
 
-export function randomFromList(arr: WeightedList): string {
-    if (arr.length === 0) {
-        return ''
-    }
-    const weightedArr = arr.map((e): readonly [number, string] => {
+function applyWeights(
+    arr: WeightedList,
+): ReadonlyArray<readonly [number, string]> {
+    return arr.map((e): readonly [number, string] => {
         if (typeof e === 'string') {
             return [1, e]
         }
         return e
     })
+}
 
-    const totalWeight = weightedArr.reduce(
-        (total, [current]) => total + current,
-        0,
-    )
+export function totalWeight(arr: WeightedList): number {
+    return applyWeights(arr).reduce((total, [current]) => total + current, 0)
+}
+
+export function randomFromList(arr: WeightedList, roll?: number): string {
+    if (arr.length === 0) {
+        return ''
+    }
+    const weightedArr = applyWeights(arr)
 
     let acc = 0
     const accumulatedArr = weightedArr.map(([weight, e]): readonly [
@@ -32,10 +37,15 @@ export function randomFromList(arr: WeightedList): string {
         string,
     ] => [(acc = weight + acc), e])
 
-    const rand = Math.random() * totalWeight
-    return accumulatedArr[
-        accumulatedArr.filter(([weight]) => weight <= rand).length
-    ][1]
+    const rand = roll ?? Math.random() * totalWeight(arr)
+    const result =
+        accumulatedArr[
+            accumulatedArr.filter(([weight]) => weight <= rand).length
+        ]
+    if (result === undefined) {
+        return ''
+    }
+    return result[1]
 }
 
 function buildRexExp(corpus: Corpus): RegExp {

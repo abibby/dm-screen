@@ -4,12 +4,14 @@ import { Checks } from 'components/checks'
 import styled, { css } from 'styled-components'
 import { Travel } from 'components/travel'
 import { EstablishmentGenerator } from 'components/establishment-generator'
-import { CarousingGenerator } from 'components/carousing-generator'
+import { RandomTable } from 'components/random-table'
+import { carousing } from 'lists/carousing'
+import { Crit } from 'components/crit'
 
 const Grid = styled.div`
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    grid-auto-rows: 200px;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    grid-auto-rows: 250px;
     grid-gap: 10px;
 `
 
@@ -32,6 +34,9 @@ const Section = styled.div<SectionProps>`
 
 render(
     <Grid>
+        <Section width={2} height={3}>
+            <Crit />
+        </Section>
         <Section width={2} height={2}>
             <Checks />
         </Section>
@@ -45,7 +50,7 @@ render(
             <EstablishmentGenerator />
         </Section>
         <Section>
-            <CarousingGenerator />
+            <RandomTable title='Carousing' table={carousing} />
         </Section>
     </Grid>,
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
