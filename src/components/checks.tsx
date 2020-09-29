@@ -70,6 +70,54 @@ const strength: ArrayMap<string, ArrayMap<string, string>> = [
     ],
 ]
 
+const charisma: ArrayMap<string, ArrayMap<string, string>> = [
+    [
+        "Friendly Creature's Reaction",
+        [
+            [
+                '0',
+                'The creature does as asked without taking risks or making sacrifices.',
+            ],
+            [
+                '10',
+                'The creature accepts a minor risk or sacrifice to do as asked.',
+            ],
+            [
+                '20',
+                'The creature accepts a significant risk or sacrifice to do as asked.',
+            ],
+        ],
+    ],
+    [
+        "Indifferent Creature's Reaction",
+        [
+            ['0', 'The creature offers no help but does no harm.'],
+            [
+                '10',
+                'The creature does as asked as long as no risks or sacrifices are involved.',
+            ],
+            [
+                '20',
+                'The creature accepts a minor risk or sacrifice to do as asked.',
+            ],
+        ],
+    ],
+    [
+        "Hostile Creature's Reaction",
+        [
+            [
+                '0',
+                "The creature opposes the adventurers' actions and might take risks to do so.",
+            ],
+            ['10', 'The creature offers no help but does no harm.'],
+            [
+                '20',
+                'The creature does as asked as long as no risks or sacrifices are involved.',
+            ],
+        ],
+    ],
+]
+
 export const Checks: FunctionalComponent = props => {
     return (
         <div>
@@ -91,6 +139,21 @@ export const Checks: FunctionalComponent = props => {
                     </tr>
                 </thead>
                 <tbody>{toTable(difficulty)}</tbody>
+            </Table>
+            <Table>
+                <thead>
+                    <tr>
+                        <th colSpan={2}>Charisma</th>
+                    </tr>
+                </thead>
+                {charisma.map(([relationship, tbl]) => (
+                    <tbody>
+                        <tr>
+                            <th colSpan={2}>{relationship}</th>
+                        </tr>
+                        {toTable(tbl)}
+                    </tbody>
+                ))}
             </Table>
             {strength.map(([skill, examples]) => (
                 <div>

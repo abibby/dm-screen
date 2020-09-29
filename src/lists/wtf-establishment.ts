@@ -212,7 +212,6 @@ export const wtfEstablishment: Corpus = {
         'noisy',
         'sweet',
         'enjoyable',
-        'non-deafening',
         'tacit',
         'faint',
         'penetrating',

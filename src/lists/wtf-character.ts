@@ -569,7 +569,7 @@ export const wtfCharacter: Corpus = {
         'names every piece of their gear',
         'is a complete exhibitionist',
         'always thinks outside the box',
-        'accidentally torched the local temple and is now cursed by its god',
+        'accidentally torched the local temple and is now cursed by its god, @god',
         'carries a cryptic treasure map they won in a tavern bet',
         'has been exiled twice under different names',
         'believes they have a claim to the throne',

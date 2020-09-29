@@ -1,6 +1,6 @@
 export const gods = [
-    [10, 'Rijndael (wind)'],
-    [10, 'Yavanna (land)'],
+    [20, 'Rijndael (wind)'],
+    [20, 'Yavanna (land)'],
     [10, 'Ulmo (sea)'],
     [10, 'The Twins (light and dark)'],
     [10, 'Virth (seasons)'],
