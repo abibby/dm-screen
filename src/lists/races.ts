@@ -23,7 +23,6 @@ export const races = [
     'Hobgoblin',
     'Human',
     'Kenku',
-    'Khenra (jackal person)',
     'Kobold',
     'Leonin',
     'Lizardfolk',
@@ -44,4 +43,7 @@ export const races = [
     'Yuan-ti Pureblood',
     [0.1, 'Zombie'],
     'Man-Horse',
+    [0.1, '2 Gnomes in a trench coat'],
+    [0.1, '2 Kobolds in a trench coat'],
+    [0.1, '2 Halflings in a trench coat'],
 ] as const

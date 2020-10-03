@@ -1,5 +1,5 @@
 import { FunctionalComponent, h } from 'preact'
-import { useCallback, useState } from 'preact/hooks'
+import { useState } from 'preact/hooks'
 import { Select, Title, useDie } from 'components'
 import { bindValue } from '@zwzn/spicy'
 import {
@@ -38,22 +38,11 @@ export const Crit: FunctionalComponent = props => {
     const [bodyPart, setBodyPart] = useState('arm')
     const [maxHP, setMaxHP] = useState('50')
     const [currentHP, setCurrentHP] = useState('50')
-    const [lethal, setLethal] = useState(true)
-
     const [dieRoll, setDieRoll, rollDie] = useDie(100)
-
-    const toggleLethal = useCallback(() => setLethal(l => !l), [setLethal])
-
-    const maxSeverity = lethal ? 14 : 11
-
-    const attackSeverity = Math.min(
-        severity(Number(maxHP), Number(currentHP), dieRoll),
-        maxSeverity,
-    )
 
     return (
         <div>
-            <Title>Crit Hit {attackSeverity}</Title>
+            <Title>Crit Hit</Title>
             <Select
                 options={attackTypes}
                 value={attackType}
@@ -64,9 +53,7 @@ export const Crit: FunctionalComponent = props => {
                 value={bodyPart}
                 onInput={bindValue(setBodyPart)}
             />
-            <button onClick={toggleLethal}>
-                {lethal ? '[x]' : '[ ]'} lethal
-            </button>
+            <br />
             <HPInput
                 type='number'
                 value={currentHP}
@@ -79,6 +66,7 @@ export const Crit: FunctionalComponent = props => {
                 onInput={bindValue(setMaxHP)}
             />
             {' HP'}
+            <br />
 
             <button onClick={rollDie}>Roll D100</button>
             <input
@@ -95,7 +83,14 @@ export const Crit: FunctionalComponent = props => {
                     ].map((effect, i) => (
                         <EffectListElement
                             key={i}
-                            active={i === attackSeverity}
+                            active={
+                                i ===
+                                severity(
+                                    Number(maxHP),
+                                    Number(currentHP),
+                                    dieRoll,
+                                )
+                            }
                         >
                             {effect}
                         </EffectListElement>

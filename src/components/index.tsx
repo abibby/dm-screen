@@ -44,16 +44,17 @@ export function useDie(
 }
 
 interface SelectProps extends h.JSX.HTMLAttributes<HTMLSelectElement> {
-    options: readonly string[]
+    options: ReadonlyArray<string | readonly [string, string]>
 }
 export const Select: FunctionalComponent<SelectProps> = props => {
-    const noOptionsProps: any = { ...props }
-    delete noOptionsProps.options
     return (
-        <select {...noOptionsProps}>
-            {props.options.map(option => (
-                <option value={option}>{option}</option>
-            ))}
+        <select {...{ ...props, options: undefined }}>
+            {props.options.map(option => {
+                if (typeof option === 'string')
+                    return <option value={option}>{option}</option>
+
+                return <option value={option[0]}>{option[1]}</option>
+            })}
         </select>
     )
 }
