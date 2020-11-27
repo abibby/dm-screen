@@ -912,6 +912,494 @@ function bind(...args) {
 
 /***/ }),
 
+/***/ "./node_modules/events/events.js":
+/*!***************************************!*\
+  !*** ./node_modules/events/events.js ***!
+  \***************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+
+
+var R = typeof Reflect === 'object' ? Reflect : null
+var ReflectApply = R && typeof R.apply === 'function'
+  ? R.apply
+  : function ReflectApply(target, receiver, args) {
+    return Function.prototype.apply.call(target, receiver, args);
+  }
+
+var ReflectOwnKeys
+if (R && typeof R.ownKeys === 'function') {
+  ReflectOwnKeys = R.ownKeys
+} else if (Object.getOwnPropertySymbols) {
+  ReflectOwnKeys = function ReflectOwnKeys(target) {
+    return Object.getOwnPropertyNames(target)
+      .concat(Object.getOwnPropertySymbols(target));
+  };
+} else {
+  ReflectOwnKeys = function ReflectOwnKeys(target) {
+    return Object.getOwnPropertyNames(target);
+  };
+}
+
+function ProcessEmitWarning(warning) {
+  if (console && console.warn) console.warn(warning);
+}
+
+var NumberIsNaN = Number.isNaN || function NumberIsNaN(value) {
+  return value !== value;
+}
+
+function EventEmitter() {
+  EventEmitter.init.call(this);
+}
+module.exports = EventEmitter;
+module.exports.once = once;
+
+// Backwards-compat with node 0.10.x
+EventEmitter.EventEmitter = EventEmitter;
+
+EventEmitter.prototype._events = undefined;
+EventEmitter.prototype._eventsCount = 0;
+EventEmitter.prototype._maxListeners = undefined;
+
+// By default EventEmitters will print a warning if more than 10 listeners are
+// added to it. This is a useful default which helps finding memory leaks.
+var defaultMaxListeners = 10;
+
+function checkListener(listener) {
+  if (typeof listener !== 'function') {
+    throw new TypeError('The "listener" argument must be of type Function. Received type ' + typeof listener);
+  }
+}
+
+Object.defineProperty(EventEmitter, 'defaultMaxListeners', {
+  enumerable: true,
+  get: function() {
+    return defaultMaxListeners;
+  },
+  set: function(arg) {
+    if (typeof arg !== 'number' || arg < 0 || NumberIsNaN(arg)) {
+      throw new RangeError('The value of "defaultMaxListeners" is out of range. It must be a non-negative number. Received ' + arg + '.');
+    }
+    defaultMaxListeners = arg;
+  }
+});
+
+EventEmitter.init = function() {
+
+  if (this._events === undefined ||
+      this._events === Object.getPrototypeOf(this)._events) {
+    this._events = Object.create(null);
+    this._eventsCount = 0;
+  }
+
+  this._maxListeners = this._maxListeners || undefined;
+};
+
+// Obviously not all Emitters should be limited to 10. This function allows
+// that to be increased. Set to zero for unlimited.
+EventEmitter.prototype.setMaxListeners = function setMaxListeners(n) {
+  if (typeof n !== 'number' || n < 0 || NumberIsNaN(n)) {
+    throw new RangeError('The value of "n" is out of range. It must be a non-negative number. Received ' + n + '.');
+  }
+  this._maxListeners = n;
+  return this;
+};
+
+function _getMaxListeners(that) {
+  if (that._maxListeners === undefined)
+    return EventEmitter.defaultMaxListeners;
+  return that._maxListeners;
+}
+
+EventEmitter.prototype.getMaxListeners = function getMaxListeners() {
+  return _getMaxListeners(this);
+};
+
+EventEmitter.prototype.emit = function emit(type) {
+  var args = [];
+  for (var i = 1; i < arguments.length; i++) args.push(arguments[i]);
+  var doError = (type === 'error');
+
+  var events = this._events;
+  if (events !== undefined)
+    doError = (doError && events.error === undefined);
+  else if (!doError)
+    return false;
+
+  // If there is no 'error' event listener then throw.
+  if (doError) {
+    var er;
+    if (args.length > 0)
+      er = args[0];
+    if (er instanceof Error) {
+      // Note: The comments on the `throw` lines are intentional, they show
+      // up in Node's output if this results in an unhandled exception.
+      throw er; // Unhandled 'error' event
+    }
+    // At least give some kind of context to the user
+    var err = new Error('Unhandled error.' + (er ? ' (' + er.message + ')' : ''));
+    err.context = er;
+    throw err; // Unhandled 'error' event
+  }
+
+  var handler = events[type];
+
+  if (handler === undefined)
+    return false;
+
+  if (typeof handler === 'function') {
+    ReflectApply(handler, this, args);
+  } else {
+    var len = handler.length;
+    var listeners = arrayClone(handler, len);
+    for (var i = 0; i < len; ++i)
+      ReflectApply(listeners[i], this, args);
+  }
+
+  return true;
+};
+
+function _addListener(target, type, listener, prepend) {
+  var m;
+  var events;
+  var existing;
+
+  checkListener(listener);
+
+  events = target._events;
+  if (events === undefined) {
+    events = target._events = Object.create(null);
+    target._eventsCount = 0;
+  } else {
+    // To avoid recursion in the case that type === "newListener"! Before
+    // adding it to the listeners, first emit "newListener".
+    if (events.newListener !== undefined) {
+      target.emit('newListener', type,
+                  listener.listener ? listener.listener : listener);
+
+      // Re-assign `events` because a newListener handler could have caused the
+      // this._events to be assigned to a new object
+      events = target._events;
+    }
+    existing = events[type];
+  }
+
+  if (existing === undefined) {
+    // Optimize the case of one listener. Don't need the extra array object.
+    existing = events[type] = listener;
+    ++target._eventsCount;
+  } else {
+    if (typeof existing === 'function') {
+      // Adding the second element, need to change to array.
+      existing = events[type] =
+        prepend ? [listener, existing] : [existing, listener];
+      // If we've already got an array, just append.
+    } else if (prepend) {
+      existing.unshift(listener);
+    } else {
+      existing.push(listener);
+    }
+
+    // Check for listener leak
+    m = _getMaxListeners(target);
+    if (m > 0 && existing.length > m && !existing.warned) {
+      existing.warned = true;
+      // No error code for this since it is a Warning
+      // eslint-disable-next-line no-restricted-syntax
+      var w = new Error('Possible EventEmitter memory leak detected. ' +
+                          existing.length + ' ' + String(type) + ' listeners ' +
+                          'added. Use emitter.setMaxListeners() to ' +
+                          'increase limit');
+      w.name = 'MaxListenersExceededWarning';
+      w.emitter = target;
+      w.type = type;
+      w.count = existing.length;
+      ProcessEmitWarning(w);
+    }
+  }
+
+  return target;
+}
+
+EventEmitter.prototype.addListener = function addListener(type, listener) {
+  return _addListener(this, type, listener, false);
+};
+
+EventEmitter.prototype.on = EventEmitter.prototype.addListener;
+
+EventEmitter.prototype.prependListener =
+    function prependListener(type, listener) {
+      return _addListener(this, type, listener, true);
+    };
+
+function onceWrapper() {
+  if (!this.fired) {
+    this.target.removeListener(this.type, this.wrapFn);
+    this.fired = true;
+    if (arguments.length === 0)
+      return this.listener.call(this.target);
+    return this.listener.apply(this.target, arguments);
+  }
+}
+
+function _onceWrap(target, type, listener) {
+  var state = { fired: false, wrapFn: undefined, target: target, type: type, listener: listener };
+  var wrapped = onceWrapper.bind(state);
+  wrapped.listener = listener;
+  state.wrapFn = wrapped;
+  return wrapped;
+}
+
+EventEmitter.prototype.once = function once(type, listener) {
+  checkListener(listener);
+  this.on(type, _onceWrap(this, type, listener));
+  return this;
+};
+
+EventEmitter.prototype.prependOnceListener =
+    function prependOnceListener(type, listener) {
+      checkListener(listener);
+      this.prependListener(type, _onceWrap(this, type, listener));
+      return this;
+    };
+
+// Emits a 'removeListener' event if and only if the listener was removed.
+EventEmitter.prototype.removeListener =
+    function removeListener(type, listener) {
+      var list, events, position, i, originalListener;
+
+      checkListener(listener);
+
+      events = this._events;
+      if (events === undefined)
+        return this;
+
+      list = events[type];
+      if (list === undefined)
+        return this;
+
+      if (list === listener || list.listener === listener) {
+        if (--this._eventsCount === 0)
+          this._events = Object.create(null);
+        else {
+          delete events[type];
+          if (events.removeListener)
+            this.emit('removeListener', type, list.listener || listener);
+        }
+      } else if (typeof list !== 'function') {
+        position = -1;
+
+        for (i = list.length - 1; i >= 0; i--) {
+          if (list[i] === listener || list[i].listener === listener) {
+            originalListener = list[i].listener;
+            position = i;
+            break;
+          }
+        }
+
+        if (position < 0)
+          return this;
+
+        if (position === 0)
+          list.shift();
+        else {
+          spliceOne(list, position);
+        }
+
+        if (list.length === 1)
+          events[type] = list[0];
+
+        if (events.removeListener !== undefined)
+          this.emit('removeListener', type, originalListener || listener);
+      }
+
+      return this;
+    };
+
+EventEmitter.prototype.off = EventEmitter.prototype.removeListener;
+
+EventEmitter.prototype.removeAllListeners =
+    function removeAllListeners(type) {
+      var listeners, events, i;
+
+      events = this._events;
+      if (events === undefined)
+        return this;
+
+      // not listening for removeListener, no need to emit
+      if (events.removeListener === undefined) {
+        if (arguments.length === 0) {
+          this._events = Object.create(null);
+          this._eventsCount = 0;
+        } else if (events[type] !== undefined) {
+          if (--this._eventsCount === 0)
+            this._events = Object.create(null);
+          else
+            delete events[type];
+        }
+        return this;
+      }
+
+      // emit removeListener for all listeners on all events
+      if (arguments.length === 0) {
+        var keys = Object.keys(events);
+        var key;
+        for (i = 0; i < keys.length; ++i) {
+          key = keys[i];
+          if (key === 'removeListener') continue;
+          this.removeAllListeners(key);
+        }
+        this.removeAllListeners('removeListener');
+        this._events = Object.create(null);
+        this._eventsCount = 0;
+        return this;
+      }
+
+      listeners = events[type];
+
+      if (typeof listeners === 'function') {
+        this.removeListener(type, listeners);
+      } else if (listeners !== undefined) {
+        // LIFO order
+        for (i = listeners.length - 1; i >= 0; i--) {
+          this.removeListener(type, listeners[i]);
+        }
+      }
+
+      return this;
+    };
+
+function _listeners(target, type, unwrap) {
+  var events = target._events;
+
+  if (events === undefined)
+    return [];
+
+  var evlistener = events[type];
+  if (evlistener === undefined)
+    return [];
+
+  if (typeof evlistener === 'function')
+    return unwrap ? [evlistener.listener || evlistener] : [evlistener];
+
+  return unwrap ?
+    unwrapListeners(evlistener) : arrayClone(evlistener, evlistener.length);
+}
+
+EventEmitter.prototype.listeners = function listeners(type) {
+  return _listeners(this, type, true);
+};
+
+EventEmitter.prototype.rawListeners = function rawListeners(type) {
+  return _listeners(this, type, false);
+};
+
+EventEmitter.listenerCount = function(emitter, type) {
+  if (typeof emitter.listenerCount === 'function') {
+    return emitter.listenerCount(type);
+  } else {
+    return listenerCount.call(emitter, type);
+  }
+};
+
+EventEmitter.prototype.listenerCount = listenerCount;
+function listenerCount(type) {
+  var events = this._events;
+
+  if (events !== undefined) {
+    var evlistener = events[type];
+
+    if (typeof evlistener === 'function') {
+      return 1;
+    } else if (evlistener !== undefined) {
+      return evlistener.length;
+    }
+  }
+
+  return 0;
+}
+
+EventEmitter.prototype.eventNames = function eventNames() {
+  return this._eventsCount > 0 ? ReflectOwnKeys(this._events) : [];
+};
+
+function arrayClone(arr, n) {
+  var copy = new Array(n);
+  for (var i = 0; i < n; ++i)
+    copy[i] = arr[i];
+  return copy;
+}
+
+function spliceOne(list, index) {
+  for (; index + 1 < list.length; index++)
+    list[index] = list[index + 1];
+  list.pop();
+}
+
+function unwrapListeners(arr) {
+  var ret = new Array(arr.length);
+  for (var i = 0; i < ret.length; ++i) {
+    ret[i] = arr[i].listener || arr[i];
+  }
+  return ret;
+}
+
+function once(emitter, name) {
+  return new Promise(function (resolve, reject) {
+    function eventListener() {
+      if (errorListener !== undefined) {
+        emitter.removeListener('error', errorListener);
+      }
+      resolve([].slice.call(arguments));
+    };
+    var errorListener;
+
+    // Adding an error listener is not optional because
+    // if an error is thrown on an event emitter we cannot
+    // guarantee that the actual event we are waiting will
+    // be fired. The result could be a silent way to create
+    // memory or file descriptor leaks, which is something
+    // we should avoid.
+    if (name !== 'error') {
+      errorListener = function errorListener(err) {
+        emitter.removeListener(name, eventListener);
+        reject(err);
+      };
+
+      emitter.once('error', errorListener);
+    }
+
+    emitter.once(name, eventListener);
+  });
+}
+
+
+/***/ }),
+
 /***/ "./node_modules/hoist-non-react-statics/dist/hoist-non-react-statics.cjs.js":
 /*!**********************************************************************************!*\
   !*** ./node_modules/hoist-non-react-statics/dist/hoist-non-react-statics.cjs.js ***!
@@ -1023,6 +1511,89 @@ function hoistNonReactStatics(targetComponent, sourceComponent, blacklist) {
 }
 
 module.exports = hoistNonReactStatics;
+
+
+/***/ }),
+
+/***/ "./node_modules/idb-keyval/dist/idb-keyval.mjs":
+/*!*****************************************************!*\
+  !*** ./node_modules/idb-keyval/dist/idb-keyval.mjs ***!
+  \*****************************************************/
+/*! exports provided: Store, get, set, del, clear, keys */
+/***/ (function(__webpack_module__, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "Store", function() { return Store; });
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "get", function() { return get; });
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "set", function() { return set; });
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "del", function() { return del; });
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "clear", function() { return clear; });
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "keys", function() { return keys; });
+class Store {
+    constructor(dbName = 'keyval-store', storeName = 'keyval') {
+        this.storeName = storeName;
+        this._dbp = new Promise((resolve, reject) => {
+            const openreq = indexedDB.open(dbName, 1);
+            openreq.onerror = () => reject(openreq.error);
+            openreq.onsuccess = () => resolve(openreq.result);
+            // First time setup: create an empty object store
+            openreq.onupgradeneeded = () => {
+                openreq.result.createObjectStore(storeName);
+            };
+        });
+    }
+    _withIDBStore(type, callback) {
+        return this._dbp.then(db => new Promise((resolve, reject) => {
+            const transaction = db.transaction(this.storeName, type);
+            transaction.oncomplete = () => resolve();
+            transaction.onabort = transaction.onerror = () => reject(transaction.error);
+            callback(transaction.objectStore(this.storeName));
+        }));
+    }
+}
+let store;
+function getDefaultStore() {
+    if (!store)
+        store = new Store();
+    return store;
+}
+function get(key, store = getDefaultStore()) {
+    let req;
+    return store._withIDBStore('readonly', store => {
+        req = store.get(key);
+    }).then(() => req.result);
+}
+function set(key, value, store = getDefaultStore()) {
+    return store._withIDBStore('readwrite', store => {
+        store.put(value, key);
+    });
+}
+function del(key, store = getDefaultStore()) {
+    return store._withIDBStore('readwrite', store => {
+        store.delete(key);
+    });
+}
+function clear(store = getDefaultStore()) {
+    return store._withIDBStore('readwrite', store => {
+        store.clear();
+    });
+}
+function keys(store = getDefaultStore()) {
+    const keys = [];
+    return store._withIDBStore('readonly', store => {
+        // This would be store.getAllKeys(), but it isn't supported by Edge or Safari.
+        // And openKeyCursor isn't supported by Safari.
+        (store.openKeyCursor || store.openCursor).call(store).onsuccess = function () {
+            if (!this.result)
+                return;
+            keys.push(this.result.key);
+            this.result.continue();
+        };
+    }).then(() => keys);
+}
+
+
 
 
 /***/ }),
@@ -1676,6 +2247,7 @@ var establishment_generator_1 = __webpack_require__(/*! components/establishment
 var random_table_1 = __webpack_require__(/*! components/random-table */ "./src/components/random-table.tsx");
 var carousing_1 = __webpack_require__(/*! lists/carousing */ "./src/lists/carousing.ts");
 var crit_1 = __webpack_require__(/*! components/crit */ "./src/components/crit.tsx");
+var weather_1 = __webpack_require__(/*! components/weather */ "./src/components/weather.tsx");
 var Grid = styled_components_1["default"].div(templateObject_1 || (templateObject_1 = __makeTemplateObject(["\n    display: grid;\n    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));\n    grid-auto-rows: 250px;\n    grid-gap: 10px;\n"], ["\n    display: grid;\n    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));\n    grid-auto-rows: 250px;\n    grid-gap: 10px;\n"])));
 var Section = styled_components_1["default"].div(templateObject_3 || (templateObject_3 = __makeTemplateObject(["\n    overflow: auto;\n    box-shadow: 0px 0px 5px 0px rgba(0, 0, 0, 0.2);\n    border-radius: 3px;\n    padding: 5px;\n\n    ", "\n"], ["\n    overflow: auto;\n    box-shadow: 0px 0px 5px 0px rgba(0, 0, 0, 0.2);\n    border-radius: 3px;\n    padding: 5px;\n\n    ",
     "\n"])), function (props) {
@@ -1694,7 +2266,9 @@ preact_1.render(preact_1.h(Grid, null,
     preact_1.h(Section, null,
         preact_1.h(establishment_generator_1.EstablishmentGenerator, null)),
     preact_1.h(Section, null,
-        preact_1.h(random_table_1.RandomTable, { title: 'Carousing', table: carousing_1.carousing }))), 
+        preact_1.h(random_table_1.RandomTable, { title: 'Carousing', table: carousing_1.carousing })),
+    preact_1.h(Section, null,
+        preact_1.h(weather_1.Weather, null))), 
 // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
 document.getElementById('app'));
 var templateObject_1, templateObject_2, templateObject_3;
@@ -1762,101 +2336,101 @@ var difficulty = [
     ['Nearly Impossible', '30'],
 ];
 // https://drive.google.com/drive/folders/0BwCtO5aw9n2LRl9CekVsZjJUd1k
-var strength = [
-    [
-        'Athletics',
-        [
-            [
-                'Automatic',
-                'Climb a wall with plenty of handholds or a secure, knotted rope or rope ladder; swim in relatively calm water; jump a number of feet horizontally equal to half of your Strength score, or your full Strength score with a 10 foot running start; leap into the air a number of feet equal to half of (3 + your Strength modifier), or the full amount with a 10 foot running start 2',
-            ],
-            [
-                'Easy',
-                'Climb a wall lacking an adequate amount of handholds, tread water in rough conditions, jump a few feet farther than you normally could; during a long jump, clear an obstacle such as a low-lying hedge or wall of height a fourth of the jump’s distance ',
-            ],
-            [
-                'Moderate',
-                'Climb a rope dangling from a protrusion or overhang (i.e. lacking a vertical surface to brace against), swim in rough water or against a mild current',
-            ],
-            [
-                'Hard',
-                'Climb a wall with very few handholds, catch yourself on a rope or other handhold in the middle or at the end of your jump, swim in violent water or against a strong current',
-            ],
-            [
-                'Very Hard',
-                'Climb a slippery or sheer wall with little or no handholds, climb vertically along an overhang with adequate handholds, swim in stormy waters',
-            ],
-        ],
-    ],
-    [
-        'Feats of Strength • Other',
-        [
-            [
-                'Easy',
-                'Force open a stuck or broken door, break free from weak bindings, pull a stuck or wedged object loose',
-            ],
-            [
-                'Moderate',
-                'Break through a wooden door reinforced with iron, hang on to a wagon while being dragged behind it',
-            ],
-            [
-                'Hard',
-                'Break through a heavy locked or barred door, topple a stone statue',
-            ],
-            [
-                'Very Hard',
-                'Break through a heavy, reinforced door such as a prison or armory door, hold a door shut against a room filling with water',
-            ],
-        ],
-    ],
-];
-var charisma = [
-    [
-        "Friendly Creature's Reaction",
-        [
-            [
-                '0',
-                'The creature does as asked without taking risks or making sacrifices.',
-            ],
-            [
-                '10',
-                'The creature accepts a minor risk or sacrifice to do as asked.',
-            ],
-            [
-                '20',
-                'The creature accepts a significant risk or sacrifice to do as asked.',
-            ],
-        ],
-    ],
-    [
-        "Indifferent Creature's Reaction",
-        [
-            ['0', 'The creature offers no help but does no harm.'],
-            [
-                '10',
-                'The creature does as asked as long as no risks or sacrifices are involved.',
-            ],
-            [
-                '20',
-                'The creature accepts a minor risk or sacrifice to do as asked.',
-            ],
-        ],
-    ],
-    [
-        "Hostile Creature's Reaction",
-        [
-            [
-                '0',
-                "The creature opposes the adventurers' actions and might take risks to do so.",
-            ],
-            ['10', 'The creature offers no help but does no harm.'],
-            [
-                '20',
-                'The creature does as asked as long as no risks or sacrifices are involved.',
-            ],
-        ],
-    ],
-];
+// const strength: ArrayMap<string, ArrayMap<string, string>> = [
+//     [
+//         'Athletics',
+//         [
+//             [
+//                 'Automatic',
+//                 'Climb a wall with plenty of handholds or a secure, knotted rope or rope ladder; swim in relatively calm water; jump a number of feet horizontally equal to half of your Strength score, or your full Strength score with a 10 foot running start; leap into the air a number of feet equal to half of (3 + your Strength modifier), or the full amount with a 10 foot running start 2',
+//             ],
+//             [
+//                 'Easy',
+//                 'Climb a wall lacking an adequate amount of handholds, tread water in rough conditions, jump a few feet farther than you normally could; during a long jump, clear an obstacle such as a low-lying hedge or wall of height a fourth of the jump’s distance ',
+//             ],
+//             [
+//                 'Moderate',
+//                 'Climb a rope dangling from a protrusion or overhang (i.e. lacking a vertical surface to brace against), swim in rough water or against a mild current',
+//             ],
+//             [
+//                 'Hard',
+//                 'Climb a wall with very few handholds, catch yourself on a rope or other handhold in the middle or at the end of your jump, swim in violent water or against a strong current',
+//             ],
+//             [
+//                 'Very Hard',
+//                 'Climb a slippery or sheer wall with little or no handholds, climb vertically along an overhang with adequate handholds, swim in stormy waters',
+//             ],
+//         ],
+//     ],
+//     [
+//         'Feats of Strength • Other',
+//         [
+//             [
+//                 'Easy',
+//                 'Force open a stuck or broken door, break free from weak bindings, pull a stuck or wedged object loose',
+//             ],
+//             [
+//                 'Moderate',
+//                 'Break through a wooden door reinforced with iron, hang on to a wagon while being dragged behind it',
+//             ],
+//             [
+//                 'Hard',
+//                 'Break through a heavy locked or barred door, topple a stone statue',
+//             ],
+//             [
+//                 'Very Hard',
+//                 'Break through a heavy, reinforced door such as a prison or armory door, hold a door shut against a room filling with water',
+//             ],
+//         ],
+//     ],
+// ]
+// const charisma: ArrayMap<string, ArrayMap<string, string>> = [
+//     [
+//         "Friendly Creature's Reaction",
+//         [
+//             [
+//                 '0',
+//                 'The creature does as asked without taking risks or making sacrifices.',
+//             ],
+//             [
+//                 '10',
+//                 'The creature accepts a minor risk or sacrifice to do as asked.',
+//             ],
+//             [
+//                 '20',
+//                 'The creature accepts a significant risk or sacrifice to do as asked.',
+//             ],
+//         ],
+//     ],
+//     [
+//         "Indifferent Creature's Reaction",
+//         [
+//             ['0', 'The creature offers no help but does no harm.'],
+//             [
+//                 '10',
+//                 'The creature does as asked as long as no risks or sacrifices are involved.',
+//             ],
+//             [
+//                 '20',
+//                 'The creature accepts a minor risk or sacrifice to do as asked.',
+//             ],
+//         ],
+//     ],
+//     [
+//         "Hostile Creature's Reaction",
+//         [
+//             [
+//                 '0',
+//                 "The creature opposes the adventurers' actions and might take risks to do so.",
+//             ],
+//             ['10', 'The creature offers no help but does no harm.'],
+//             [
+//                 '20',
+//                 'The creature does as asked as long as no risks or sacrifices are involved.',
+//             ],
+//         ],
+//     ],
+// ]
 exports.Checks = function (props) {
     return (preact_1.h("div", null,
         preact_1.h(components_1.Title, null, "Checks"),
@@ -1871,29 +2445,7 @@ exports.Checks = function (props) {
                 preact_1.h("tr", null,
                     preact_1.h("th", null, "Difficulty"),
                     preact_1.h("th", null, "DC"))),
-            preact_1.h("tbody", null, toTable(difficulty))),
-        preact_1.h(components_1.Table, null,
-            preact_1.h("thead", null,
-                preact_1.h("tr", null,
-                    preact_1.h("th", { colSpan: 2 }, "Charisma"))),
-            charisma.map(function (_a) {
-                var relationship = _a[0], tbl = _a[1];
-                return (preact_1.h("tbody", null,
-                    preact_1.h("tr", null,
-                        preact_1.h("th", { colSpan: 2 }, relationship)),
-                    toTable(tbl)));
-            })),
-        strength.map(function (_a) {
-            var skill = _a[0], examples = _a[1];
-            return (preact_1.h("div", null,
-                preact_1.h("h3", null, skill),
-                preact_1.h("div", null, examples.map(function (_a) {
-                    var difficulty = _a[0], example = _a[1];
-                    return (preact_1.h("div", null,
-                        preact_1.h("h4", null, difficulty),
-                        preact_1.h("p", null, example)));
-                }))));
-        })));
+            preact_1.h("tbody", null, toTable(difficulty)))));
 };
 function toTable(arr) {
     return arr.map(function (row) { return (preact_1.h("tr", null, row.map(function (cell) { return (preact_1.h("td", null, cell)); }))); });
@@ -2015,11 +2567,49 @@ var __assign = (this && this.__assign) || function () {
     };
     return __assign.apply(this, arguments);
 };
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+var __generator = (this && this.__generator) || function (thisArg, body) {
+    var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g;
+    return g = { next: verb(0), "throw": verb(1), "return": verb(2) }, typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
+    function verb(n) { return function (v) { return step([n, v]); }; }
+    function step(op) {
+        if (f) throw new TypeError("Generator is already executing.");
+        while (_) try {
+            if (f = 1, y && (t = op[0] & 2 ? y["return"] : op[0] ? y["throw"] || ((t = y["return"]) && t.call(y), 0) : y.next) && !(t = t.call(y, op[1])).done) return t;
+            if (y = 0, t) op = [op[0] & 2, t.value];
+            switch (op[0]) {
+                case 0: case 1: t = op; break;
+                case 4: _.label++; return { value: op[1], done: false };
+                case 5: _.label++; y = op[1]; op = [0]; continue;
+                case 7: op = _.ops.pop(); _.trys.pop(); continue;
+                default:
+                    if (!(t = _.trys, t = t.length > 0 && t[t.length - 1]) && (op[0] === 6 || op[0] === 2)) { _ = 0; continue; }
+                    if (op[0] === 3 && (!t || (op[1] > t[0] && op[1] < t[3]))) { _.label = op[1]; break; }
+                    if (op[0] === 6 && _.label < t[1]) { _.label = t[1]; t = op; break; }
+                    if (t && _.label < t[2]) { _.label = t[2]; _.ops.push(op); break; }
+                    if (t[2]) _.ops.pop();
+                    _.trys.pop(); continue;
+            }
+            op = body.call(thisArg, _);
+        } catch (e) { op = [6, e]; y = 0; } finally { f = t = 0; }
+        if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
+    }
+};
 exports.__esModule = true;
-exports.Select = exports.useDie = exports.Table = exports.Title = void 0;
+exports.usePermanentState = exports.Select = exports.useDie = exports.Table = exports.Title = void 0;
 var preact_1 = __webpack_require__(/*! preact */ "./node_modules/preact/dist/preact.module.js");
 var hooks_1 = __webpack_require__(/*! preact/hooks */ "./node_modules/preact/hooks/dist/hooks.module.js");
 var styled_components_1 = __webpack_require__(/*! styled-components */ "./node_modules/styled-components/dist/styled-components.browser.esm.js");
+var idb_keyval_1 = __webpack_require__(/*! idb-keyval */ "./node_modules/idb-keyval/dist/idb-keyval.mjs");
+var events_1 = __webpack_require__(/*! events */ "./node_modules/events/events.js");
 exports.Title = styled_components_1["default"].h2(templateObject_1 || (templateObject_1 = __makeTemplateObject(["\n    background-color: black;\n    color: white;\n    margin-top: -5px;\n    margin-left: -5px;\n    margin-right: -5px;\n    padding: 0 5px;\n"], ["\n    background-color: black;\n    color: white;\n    margin-top: -5px;\n    margin-left: -5px;\n    margin-right: -5px;\n    padding: 0 5px;\n"])));
 exports.Table = styled_components_1["default"].table(templateObject_2 || (templateObject_2 = __makeTemplateObject(["\n    border-collapse: collapse;\n    width: 100%;\n\n    > thead {\n        background-color: #333;\n        color: white;\n        td,\n        th {\n            border-left: 1px solid white;\n            border-right: 1px solid white;\n        }\n    }\n    > tbody {\n        > tr:nth-child(even) {\n            background-color: #eee;\n        }\n    }\n"], ["\n    border-collapse: collapse;\n    width: 100%;\n\n    > thead {\n        background-color: #333;\n        color: white;\n        td,\n        th {\n            border-left: 1px solid white;\n            border-right: 1px solid white;\n        }\n    }\n    > tbody {\n        > tr:nth-child(even) {\n            background-color: #eee;\n        }\n    }\n"])));
 function useDie(dieSize) {
@@ -2036,6 +2626,55 @@ exports.Select = function (props) {
         return preact_1.h("option", { value: option[0] }, option[1]);
     })));
 };
+var permStore = new idb_keyval_1.Store();
+var permEvents = new events_1.EventEmitter();
+function usePermanentState(key, initialState) {
+    var _this = this;
+    var _a = hooks_1.useState(initialState), value = _a[0], setValue = _a[1];
+    hooks_1.useEffect(function () {
+        var c = function (value) { return __awaiter(_this, void 0, void 0, function () {
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        setValue(value);
+                        return [4 /*yield*/, idb_keyval_1.set(key, value, permStore)];
+                    case 1:
+                        _a.sent();
+                        return [2 /*return*/];
+                }
+            });
+        }); };
+        permEvents.on(key, c);
+        idb_keyval_1.keys(permStore).then(function (keys) { return __awaiter(_this, void 0, void 0, function () {
+            var _a;
+            return __generator(this, function (_b) {
+                switch (_b.label) {
+                    case 0:
+                        if (!keys.find(function (k) { return k === key; })) return [3 /*break*/, 2];
+                        _a = setValue;
+                        return [4 /*yield*/, idb_keyval_1.get(key, permStore)];
+                    case 1:
+                        _a.apply(void 0, [_b.sent()]);
+                        _b.label = 2;
+                    case 2: return [2 /*return*/];
+                }
+            });
+        }); });
+        return function () {
+            return permEvents.off(key, c);
+        };
+    }, []);
+    return [
+        value,
+        hooks_1.useCallback(function (newValue) {
+            if (newValue instanceof Function) {
+                newValue = newValue(value);
+            }
+            permEvents.emit(key, newValue);
+        }, [key, permEvents]),
+    ];
+}
+exports.usePermanentState = usePermanentState;
 var templateObject_1, templateObject_2;
 
 
@@ -2145,6 +2784,54 @@ exports.Travel = function (props) {
                     preact_1.h("td", null))))));
 };
 var templateObject_1;
+
+
+/***/ }),
+
+/***/ "./src/components/weather.tsx":
+/*!************************************!*\
+  !*** ./src/components/weather.tsx ***!
+  \************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+exports.__esModule = true;
+exports.Weather = void 0;
+var preact_1 = __webpack_require__(/*! preact */ "./node_modules/preact/dist/preact.module.js");
+var components_1 = __webpack_require__(/*! components */ "./src/components/index.tsx");
+var hooks_1 = __webpack_require__(/*! preact/hooks */ "./node_modules/preact/hooks/dist/hooks.module.js");
+var conditions = [
+    [
+        'precipitation',
+        [
+            'Clear',
+            'Light clouds',
+            'Overcast or ground fog',
+            'Rain, hail, or snow',
+            'Torrential rain, driving hail, or blizzard',
+        ],
+    ],
+    ['temperature', ['mild', 'moderate', 'high', 'extreme']],
+    ['wind', ['Calm', 'Moderate wind', 'Strong wind', 'Gale', 'Storm']],
+];
+exports.Weather = function (props) {
+    var _a = components_1.usePermanentState('weather', conditions.map(function () { return 0; })), weather = _a[0], setWeather = _a[1];
+    var c = hooks_1.useCallback(function () {
+        setWeather(conditions.map(function (_a) {
+            var list = _a[1];
+            return Math.floor(Math.random() * list.length);
+        }));
+    }, []);
+    return (preact_1.h("div", null,
+        preact_1.h(components_1.Title, null, "Weather"),
+        preact_1.h("button", { onClick: c }, "Next Day"),
+        preact_1.h("ul", null, conditions.map(function (_a, i) {
+            var name = _a[0], list = _a[1];
+            return (preact_1.h("li", null, list[weather[i]]));
+        }))));
+};
 
 
 /***/ }),
@@ -2313,7 +3000,7 @@ var effects = {
         'Your shot transfixes your target’s hand, passing between the metacarpal bones between wrist and fingers, and nailing it to any shield he might be holding in that hand. Until the arrow is removed, as per #5 above, the hand is useless. He also counts as stunned until the end of his next turn and, unless magically healed, will suffer a permanent -1 penalty to any skill checks requiring fine manipulation made with that hand, due to nerve damage to his middle finger.',
         'Your shot transfixes your target’s wrist, resulting in penalties as for #7 above, except that you must pass a DC10 constitution save to recover from the stunning and the penalty will be disadvantage due to the much greater damage to nerves and tendons.',
         'Your shot penetrates your target’s forearm, the point lodging in one of the long bones of the forearm. Your target is stunned for d10/2 turns. The arm is useless until the arrow/bolt is withdrawn, which is very difficult due to the head being firmly embedded in the bone, requiring three full actions either by you or someone else, plus a successful DC20 constitution save if you do it yourself.',
-        'Your shot lodges in your target’s elbow, severing the head of one of the long bones of the forearm and jamming the joint at a 90-degree angle. Your target is stunned by blinding pain for d10/2 turns and the arm is useless until his W characteristic has been fully recovered. Also the head of the arrow/bolt will have to be withdrawn. This requires either a successful DC 10 heal check or, if lacking that skill, a DC20 dexterity save, by someone else. Failure means the head was successfully withdrawn but additional damage means healing is delayed, the target recovering one less W the next time he should have regained one or more W.',
+        'Your shot lodges in your target’s elbow, severing the head of one of the long bones of the forearm and jamming the joint at a 90-degree angle. Your target is stunned by blinding pain for d10/2 turns and the arm is useless until his HP has been fully recovered. Also the head of the arrow/bolt will have to be withdrawn. This requires either a successful DC 10 heal check or, if lacking that skill, a DC20 dexterity save, by someone else. Failure means the head was successfully withdrawn but additional damage means healing is delayed, the target must spend two hit dice the next time the recover hit points during a short rest.',
         'Your shot lacerates the target’s biceps muscle, also severing the large artery in the arm. Due to the spurting arterial spray, he will suffer a penalty of -2 to strength and dexterity each turn, losing consciousness when either of those ability scores reaches zero. When he wakes up the arrow/bolt will have to be withdrawn as per #5 above.',
         'Your shot pierces the meaty part of your target’s shoulder near the neck, damaging the brachial plexus, the large bundle of nerves supplying the arm. He must pass a DC20 constitution save to avoid dropping whatever he is holding in the other hand to grasp the injured shoulder. Unless magically healed within one day, the paralysis will be permanent, rendering the arm limp and useless. Also, the arrow/bolt will have to be removed as per #10 above.',
         'Your shot shatters your target’s shoulder-blade and severs the large artery branching off from the aorta to the arm and neck, causing massive internal bleeding. An immediate DC20 constitution save is required to avoid falling unconscious. He also suffers a cumulative 10% risk of dying from loss of blood each turn, unless magically healed. If he survives, the arrow/bolt will have to be removed as per #10 above.',
@@ -2326,7 +3013,7 @@ var effects = {
         'Your shot pierces your target’s flank just beneath the skin, the arrow/bolt sticking there and causing a penalty of disadvantage to his attack rolls until the end of his next turn, the penalty then reduced to -2 until the projectile is removed, requiring a full action (one half-action to break off the shaft, another half-action to withdraw the stump).',
         'Your shot clips your target’s shoulder, knocking him to the ground.',
         'Your shot lodges under a rib, causing your target intense pain every time he moves, making him suffer a -2 penalty to his attack rolls until the arrow/bolt is removed. This takes two full actions and requires a successful  DC10 heal check or a DC20 slight of hand check. Failure means the shaft broke but the head of the arrow remains lodged in your target’s ribcage, now instead requiring a successful DC20 heal check and six full actions to remove.',
-        'Your shot pierces your target’s side, penetrating the wall of muscle and entering his abdominal cavity but missing any internal organs. Your target suffers disadvantage to his attack rolls until the arrow/bolt is removed, requiring two full actions and a successful DC10 heal check or a DC15 slight of hand check. Failure means that the projectile was successfully withdrawn but additional damage was caused, delaying healing, resulting in the target regaining one less W the next time he should have regained one or more W. In addition to delayed healing, the target must pass a DC20 constitution save or suffer an infection within one day, making him delirious and helpless for d10 days. A successful Shallyan Cure Disease spell will cure the infection.',
+        'Your shot pierces your target’s side, penetrating the wall of muscle and entering his abdominal cavity but missing any internal organs. Your target suffers disadvantage to his attack rolls until the arrow/bolt is removed, requiring two full actions and a successful DC10 heal check or a DC15 slight of hand check. Failure means that the projectile was successfully withdrawn but additional damage was caused, delaying healing, resulting in the target must spend two hit dice the next time the recover hit points during a short rest. In addition to delayed healing, the target must pass a DC20 constitution save or suffer an infection within one day, making him delirious and helpless for d10 days. A successful Shallyan Cure Disease spell will cure the infection.',
         'Your shot sinks into your target’s shoulder (roll d10: 1-5 right, 6-10 left) near the neck, barely missing the top of the lung. Due to the discomfort of having an arrow/bolt sticking out of his body, your target suffers disadvantage to his attack rolls when using that arm, until the projectile is removed. Unfortunately, the point is lodged deep underneath the collarbone, requiring six full turns and either a successful DC10 heal check if proficient or a DC25 dexterity save to avoid puncturing the lung. If this happens, the target suffers a cumulative -2 strength and dexterity each turn, falling unconscious when either of those characteristics reach zero and expiring within another 2d10 turns unless magical healing is provided.',
         'Your shot sinks into the target’s belly, felling him to the ground. The projectile has lacerated the intestines, spilling fecal matter into the abdominal cavity. Your target is stunned, requiring a DC20 constitution save to recover from the stunning. Until the arrow/bolt is removed, he’ll suffer disadvantage to all skill checks and attack rolls. Removing the arrow requires three full actions and either a successful DC10 heal check or a DC15 dexterity save. In addition, he must make a DC25 constitution save or die from infection in d10 days (becoming delirious and helpless within one day) unless successful magical healing seals up the lacerations within half that time. Alternatively, a DC25 heal check if proficient can be attempted.',
         'Your shot sinks deep into your target’s stomach just beneath the ribs on his left side and damages the spleen, causing internal bleeding. He is stunned until the end of his next turn and will then suffer a cumulative penalty of -1 to strength and dexterity each turn, falling unconscious when either of those ability scores reaches zero. In addition, penalties until the projectile is removed and subsequent risk of infection is as for #6 above. Fortunately, the bleeding will be brought to a halt by the tough membranous covering of the spleen, containing the damage before your target dies from loss of blood.',
@@ -2365,7 +3052,7 @@ var effects = {
         'Your shot transfixes your target’s calf, fracturing the outer of the two bones of the lower leg. Until the end of the battle they have disadvantage on all skill checks and attack rolls due to the blinding pain. In addition, until the target finishes a long rest, their movement speed is reduced by 20 feet and they have disadvantage on dexterity saving throws. Removing the arrow is pretty straightforward, requiring no special skill checks.',
         'Your shot slams through your target’s knee, the point tearing out the back of the joint. Until the projectile has been removed from the jammed knee, movement speed is reduced to 10 feet and they have disadvantage on dexterity saving throws. Removing the arrow/bolt takes three full actions. Fragments of bone left inside the joint causes the knee to stiffen up and lock itself at inopportune moments, causing a permanent 10 foot reduction of movement speed and making their dexterity can not contribute to their AC.',
         'Your shot shatters your target’s shinbone, knocking him to the ground writhing in pain. He counts as helpless for d10/2 turns and is unable to support himself on that leg until the fracture has healed in six weeks. Hopping on one leg counts as having a movement speed of 10 feet and they have disadvantage on attack rolls and dexterity saving throws. One crutch reduces the penalty on attack rolls and dexterity saves to -2 but requires the use of one hand. Two crutches enables you to limp along at a Move of 20 feet but requires both hands and Dodge Blow tests still count as DC20.',
-        'Your shot shatters your target’s kneecap, knocking him to the ground. He is helpless with pain for d10 turns. He remains unable to support himself on that leg until his W characteristic is restored fully. Movement speed is permanently reduced by 20 feet and all dexterity saving throws have a -2 from now on.',
+        'Your shot shatters your target’s kneecap, knocking him to the ground. He is helpless with pain for d10 turns. He remains unable to support himself on that leg until finishes a long rest. Movement speed is permanently reduced by 20 feet and all dexterity saving throws have a -2 from now on.',
         'Your shot sinks deep into the target’s thigh, cracking the thighbone. Your target falls to the ground, clasping his leg in agony, counting as helpless for d10 turns, then suffers disadvantage to all skill checks for the duration of the battle due to the agonizing pain. Subsequent penalties and healing are as per #10 above.',
         'Your shot sinks into the target’s thigh, severing the large femoral artery. Your target will suffer a cumulative penalty of -2 to strength and dexterity each turn, falling unconscious when either of those ability scores reaches zero. He’ll then die from loss of blood in another d10/2 turns unless magical healing is provided.',
         'Your shot slams into your target’s hip, shattering bone and lacerating nerves and major blood vessels inside the pelvis. Your target falls to the ground, helpless with shock,and expires inevitably in d10/2 turns.',
@@ -2389,18 +3076,18 @@ exports["default"] = effects;
 exports.__esModule = true;
 var effects = {
     arm: [
-        "Your weapon smashes into your opponent's fingers, numbing them. He suffers a penalty of -10% to his WS until the end of his next turn.",
-        "Your weapon smashes into your opponent's hand, forcing him to make a Challenging (-10%) WP test to avoid dropping what he is holding in that hand.",
-        "Your weapon smashes into your opponent's elbow, sending a shock of pain down his arm, forcing him to make a Hard (-20%) T test to avoid dropping what he is holding in that hand. In addition the arm will count as useless for two turns.",
-        "Your weapon smashes into your opponent's biceps muscle,bruising it to the bone, forcing him to make a Very Hard (-30%) T test to avoid dropping what he is holding in that hand. In addition, his SB for that arm is halved (rounding down) for d10 turns.",
-        "Your weapon smashes into your opponent's shoulder, bruising it badly. Anything held in that hand is dropped and your opponent is at half SB and a penalty of -20% to his WS for any attacks or parries made by that arm for the duration of the battle.",
-        "Your blow smashes your opponent's hand, fracturing some of the bones between wrist and fingers. The hand is useless until the bones have healed in d10/2 weeks and he will then suffer a penalty of -10% to WS tests or tests requiring fine manipulation performed with that hand afterward due to improperly set bones unless a successful Heal test has been made to reset them the first week. Magical healing will automatically do this, as well as speeding up the healing process, ignoring the longer time required.",
-        "Your weapon fractures your opponent's wrist, making the hand hang loosely at an odd angle. He will have to make a Hard (-20%) WP test or be stunned by the pain for d10/2 turns. Healing is as per #6 above, although also requiring a good splint or cast.",
-        "Your weapon smashes into your opponent's forearm, fracturing the bones with a satisfying snap. He is stunned for d10 turns by the intense pain. The arm is useless until healed as per #7 above, except that the Heal test is Hard (-20%).",
-        "Your blow smashes into your opponent's shoulder, fracturing the collarbone and dislocating the arm from its socket. Your opponent is stunned for d10 turns and must make a successful T test to remain standing, suffering a penalty of -20% to all tests due to the excruciating pain for the remainder of the battle. The arm is useless until popped back into place by a successful Heal test but your opponent will still suffer a penalty of -20% to any WS andS tests made using that arm until it has healed in d10/2 weeks.",
-        "Your weapon crushes your opponent's elbow, smashing the joint and leaving the lower arm hanging from it with a disturbing amount of mobility. Your opponent is helpless with pain for d10 rounds. The arm will be useless until the bones have knitted in d10 weeks. Only magical healing will restore the full function of the arm, which will otherwise suffer a penalty of -10% to all WS, S and Ag tests in which it is used due to stiffness and damaged nerves, assuming it is cared for with a successful Hard (-20%) Heal test. If the damage is left untended by mundane or magical healing the badly healed joint raises the penalty to -20%.",
+        "Your weapon smashes into your opponent's fingers, numbing them. He suffers a penalty of -2 to his attack rolls until the end of his next turn.",
+        "Your weapon smashes into your opponent's hand, forcing him to make a DC15 constitution saving throw to avoid dropping what he is holding in that hand.",
+        "Your weapon smashes into your opponent's elbow, sending a shock of pain down his arm, forcing him to make a DC20 constitution saving throw to avoid dropping what he is holding in that hand. In addition the arm will count as useless for two turns.",
+        "Your weapon smashes into your opponent's biceps muscle,bruising it to the bone, forcing him to make a DC25 constitution saving throw to avoid dropping what he is holding in that hand. In addition, his SB for that arm is halved (rounding down) for d10 turns.",
+        "Your weapon smashes into your opponent's shoulder, bruising it badly. Anything held in that hand is dropped, your opponent's strength modifier is reduced by half and a penalty of -4 to his attack rolls made by that arm for the duration of the battle.",
+        "Your blow smashes your opponent's hand, fracturing some of the bones between wrist and fingers. The hand is useless until the bones have healed in d10/2 weeks and he will then suffer a penalty of -2 to attack rolls or skill checks requiring fine manipulation performed with that hand afterward due to improperly set bones unless a successful DC10 Heal check has been made to reset them the first week. Magical healing will automatically do this, as well as speeding up the healing process, ignoring the longer time required.",
+        "Your weapon fractures your opponent's wrist, making the hand hang loosely at an odd angle. He will have to make a DC20 constitution saving throw or be stunned by the pain for d10/2 turns. Healing is as per #6 above, although also requiring a good splint or cast.",
+        "Your weapon smashes into your opponent's forearm, fracturing the bones with a satisfying snap. He is stunned for d10 turns by the intense pain. The arm is useless until healed as per #7 above, except that the Heal check is DC20.",
+        "Your blow smashes into your opponent's shoulder, fracturing the collarbone and dislocating the arm from its socket. Your opponent is stunned for d10 turns and must make a successful constitution saving throw to remain standing, suffering a penalty of -4 to attack rolls, saving throws and skill checks due to the excruciating pain for the remainder of the battle. The arm is useless until popped back into place by a successful DC10 Heal check but your opponent will still suffer a penalty of -4 to any attack rolls and strength checks made using that arm until it has healed in d10/2 weeks.",
+        "Your weapon crushes your opponent's elbow, smashing the joint and leaving the lower arm hanging from it with a disturbing amount of mobility. Your opponent is helpless with pain for d10 rounds. The arm will be useless until the bones have knitted in d10 weeks. Only magical healing will restore the full function of the arm, which will otherwise suffer a penalty of -2 to all attack rolls, and strength and dexterity checks in which it is used due to stiffness and damaged nerves, assuming it is cared for with a successful DC20 Heal check. If the damage is left untended by mundane or magical healing the badly healed joint raises the penalty to -4.",
         "The bone of your opponent's upper arm breaks into several pieces with a loud crack that echoes across the battlefield. He is helpless with pain for d10 turns. Nerves and an artery are damaged by the sharp fragments, requiring magical healing to restore function or else the arm will have to be amputated or suffer gangrene within d10 days. This will be fatal within another d10 days unless successful magical healing is provided, still leaving the arm almost totally paralysed and useless.",
-        "Your blow smashes into your opponent's shoulder, tearing and crushing the nerves that supply the arm. No amount of magical or mundane healing can restore function, leaving the arm hanging useless and paralysed from the shoulder by atrophying muscles and shredded tendons. Your opponent must make a Hard (-20%) T test or fall unconscious from the shock, being stunned for d10 turns and then suffering a penalty of -20% to all tests for the duration of the battle even if he makes the test.",
+        "Your blow smashes into your opponent's shoulder, tearing and crushing the nerves that supply the arm. No amount of magical or mundane healing can restore function, leaving the arm hanging useless and paralysed from the shoulder by atrophying muscles and shredded tendons. Your opponent must make a DC20 constitution saving throw or fall unconscious from the shock, being stunned for d10 turns and then suffering a penalty of -20% to all tests for the duration of the battle even if he makes the test.",
         "Your weapon practically tears your opponent's arm from its socket, leaving it dangling by torn muscle and tendons, bleeding heavily. Your opponent falls unconscious from shock and dies within 2d10 turns from loss of blood and massive traumatic shock unless magical healing is applied to at least partly mend the torn tissues, still leaving the arm useless and paralysed.",
         "Your weapon shatters your opponent's shoulder from the side, driving shards of bone into the ribcage, piercing the lung and nicking the heart. Your opponent coughs up bright arterial blood before he slumps to the ground and dies inevitably in d10/2 turns.",
         "Your weapon completely demolishes your opponent's shoulder before driving on and shattering the ribcage. Your opponent is hurled sideways and crumples to the ground, twitches once and never moves again.",
@@ -2409,15 +3096,15 @@ var effects = {
         'Your weapon punches your opponent in the belly, momentarily winding him. He loses a half- action while recovering.',
         'Your weapon contuses one of your opponent’s ribs. He suffers –10 % to his WS until the end of his next turn.',
         'You connect solidly and squarely with your opponent’s solar plexus, driving his breath from his body. He cannot attack next turn and suffers a penalty of –20 % to any parryuntil the end of that turn.',
-        'Your blow glances against your opponent’s groin, forcing him to make an immediate Very Hard(-30 %) T test to avoid spending until the end of his next turn helpless, puking his guts out. If female or otherwise non - equipped in the scrotal department the test is only Challenging(-10 %) and failure causes only stunning.',
+        'Your blow glances against your opponent’s groin, forcing him to make an immediate Very Hard(-30 %) constitution saving throw to avoid spending until the end of his next turn helpless, puking his guts out. If female or otherwise non - equipped in the scrotal department the test is only Challenging(-10 %) and failure causes only stunning.',
         'Your blow contuses several of the ribs underneath your opponent’s arm. His WS is reduced by –20 % for the next d10 / 2 turns.',
-        'Your weapon crashes into your opponent’s side, damaging his spleen, causing slow internal bleeding as that organ’s tough membranous covering tries to contain the steady leakage of blood. Your opponent suffers no ill effects during the remainder of this battle apart from being stunned until the end of his next turn, but he will have to make a Hard(-20 %) T test after the battle or suffer a cumulative –5 % to his WS, BS, Ag and S each hour. If he receives magical healing before any of those characteristics reaches zero his life will be saved, otherwise he will fall unconscious and die within the next 2d10hours. A surgical operation to remove the damaged spleen is also possible, although it will require a successfulHeal test with the Surgery Talent. Failure will result in the death of the patient. If successful, he’ll still have to pass a Hard(-20 %) T test or contract a lethal infection, dying within d10 / 2 days unless a successful Shallyan Cure Disease spell is preformed. Without a spleen, his immune system will have been weakened, making him suffer a penalty of –10 % to resist infections in the future.',
+        'Your weapon crashes into your opponent’s side, damaging his spleen, causing slow internal bleeding as that organ’s tough membranous covering tries to contain the steady leakage of blood. Your opponent suffers no ill effects during the remainder of this battle apart from being stunned until the end of his next turn, but he will have to make a Hard(-20 %) constitution saving throw after the battle or suffer a cumulative –5 % to his WS, BS, Ag and S each hour. If he receives magical healing before any of those characteristics reaches zero his life will be saved, otherwise he will fall unconscious and die within the next 2d10hours. A surgical operation to remove the damaged spleen is also possible, although it will require a successfulHeal test with the Surgery Talent. Failure will result in the death of the patient. If successful, he’ll still have to pass a Hard(-20 %) constitution saving throw or contract a lethal infection, dying within d10 / 2 days unless a successful Shallyan Cure Disease spell is preformed. Without a spleen, his immune system will have been weakened, making him suffer a penalty of –10 % to resist infections in the future.',
         'Your blow breaks several ribs, stunning your opponent until the end of his next turn. He will also suffer a penalty of –20 % to all actions as he gasps for breath and guards his ribs, until his W characteristic has been healed up to Lightly Wounded.',
-        'Your blow connects solidly with your opponent’s hip, fracturing one wing of the pelvis - bone. He falls immediately to the ground and counts as helpless from the pain until he can pass a Hard(-20 %) T test, getting one roll each turn. He will then suffer a penalty of –10 % on hisWS for the remainder of the battle and his M will be reduced by –2 and all Dodge Blow tests will count as Hard(-20 %) until his W characteristic has been fully restored.',
-        'Your weapon crashes into your opponent’s sternum, temporarily causing paralysis of his breathing musculature and cardiac arrhythmia as his hearts starts beating irregularly. He is helpless until the end of his next turn and will then have to pass a T test or his heart will simply stop, killing him. If he passes the T test he will simply be stunned for d10 / 2 turns before recovering his breath and normal heartbeat.',
+        'Your blow connects solidly with your opponent’s hip, fracturing one wing of the pelvis - bone. He falls immediately to the ground and counts as helpless from the pain until he can pass a Hard(-20 %) constitution saving throw, getting one roll each turn. He will then suffer a penalty of –10 % on hisWS for the remainder of the battle and his M will be reduced by –2 and all Dodge Blow tests will count as Hard(-20 %) until his W characteristic has been fully restored.',
+        'Your weapon crashes into your opponent’s sternum, temporarily causing paralysis of his breathing musculature and cardiac arrhythmia as his hearts starts beating irregularly. He is helpless until the end of his next turn and will then have to pass a constitution saving throw or his heart will simply stop, killing him. If he passes the constitution saving throw he will simply be stunned for d10 / 2 turns before recovering his breath and normal heartbeat.',
         'Your blow shatters ribs, pushing splinters into internal organs, causing internal bleeding and a 50 % chance of a collapsed lung. If that happens your opponent will suffer a penalty of –20 % to all tests before collapsing unconscious after d10 / 2 turns and dying after an additional d10 / 2 turns. Only magical healing can save his life. If his lungs survive intact he’ll still suffer a penalty of –20 % to all tests until his ribcage has healed in four weeks.',
-        'Your blow shatters your opponent’s shoulder - blade, causing a penalty of –20 % to all tests until his W characteristic has been fully restored. In addition there is a50 % chance of the blow also having glanced into his spine, causing spinal injury and resulting in total paralysis from the waist down. If your opponent passes a Challenging(-10 %) T test the paralysis was caused only by swelling from a cracked vertebra and he will recover from his paralysis in d10 / 2 weeks.',
-        'Your opponent is hit squarely between his shoulder - blades as he twists to avoid your blow, fracturing his spine. He falls immediately to the ground, paralysed from the waist down. He must make a Hard(-20 %) WP test each turn to stay conscious. After falling unconscious he must make a Challenging(-10 %) T test or die before regaining consciousness. If he survives he will remain paralysed, as not even magical healing can restore him, and will gain one extra IP and be plagued by constant nightmares, reliving the moment of his trauma.',
+        'Your blow shatters your opponent’s shoulder - blade, causing a penalty of –20 % to all tests until his W characteristic has been fully restored. In addition there is a50 % chance of the blow also having glanced into his spine, causing spinal injury and resulting in total paralysis from the waist down. If your opponent passes a Challenging(-10 %) constitution saving throw the paralysis was caused only by swelling from a cracked vertebra and he will recover from his paralysis in d10 / 2 weeks.',
+        'Your opponent is hit squarely between his shoulder - blades as he twists to avoid your blow, fracturing his spine. He falls immediately to the ground, paralysed from the waist down. He must make a Hard(-20 %) constitution saving throw each turn to stay conscious. After falling unconscious he must make a Challenging(-10 %) constitution saving throw or die before regaining consciousness. If he survives he will remain paralysed, as not even magical healing can restore him, and will gain one extra IP and be plagued by constant nightmares, reliving the moment of his trauma.',
         'Your blow hits your opponent’s breastbone with a mighty crack, fracturing and compressing it against the heart. Unbeknownst to your opponent, the shearing force has partly torn the aorta away from the heart, causing the pericardial sack surrounding the heart to fill up with blood, preventing it from beating properly. He will suffer a cumulative penalty of –15 % to his WS, BS, Ag and S each turn as his heart can no longer beat within the rapidly filling pericardium. When any of those characteristics reaches zero he will collapse dead. No mundane or magical healing can save him.',
         'Your blow drives pieces of your opponent’s breastbone and ribs into his lungs and heart, causing frothy blood to erupt from his mouth as he staggers backward and collapses. Death is inevitable within one turn.',
         'Your blow smashes your weapon straight through the front of your opponent’s ribcage, caving it in and killing him instantly. On your next turn you must take a half - action and pass either an S or Ag test to withdraw your weapon from your fallen foe’s chest cavity.',
@@ -2428,30 +3115,30 @@ var effects = {
         'Your weapon glances off the bridge of your opponent’s nose, making him see bright flashes and his eyes water. All his WS tests during the next d10 / 2 turns will count as Challenging (-10 %).',
         'Your weapon smashes into the meat of your opponent’s neck, straining the large neck muscles. All his WS tests during the next d10 / 2 turns will count as Hard (-20 %).',
         'Your weapon lands a solid blow on the side of your opponent’s head, bursting his eardrum, making a small rivulet of blood run down his neck. He will be stunned until the end of his next turn and will suffer a penalty of –20 % to all hearing - based Perception tests until the eardrum has resealed itself in d10 / 2 weeks.',
-        'Your blow connects to your opponent’s head with a sickening thud. Concussed, he falls to the ground, counting as helpless until he can make a Hard(-20 %) T test to regain full consciousness, starting to roll during his next turn, re - rolling each turn until he succeeds. For the rest of this battle he will suffer a –10 % penalty to his WS, BS and Ag due to dizziness and nausea. He must also make a Challenging(-10 %) test or suffer short - term amnesia, not remembering a thing about the battle or how he ended up in it.',
-        'Your weapon fractures your opponent’s nose, stunning him until the end of his next turn as he sees bright flashes and spits blood. On his next turn after that he must pass a Challenging(-10 %) T test to recover, re - rolling each turn until he succeeds. There is a 50 % chance that the nose will be so smashed it reduces his Fel by d10 % unless magically healed or set with a successful Heal test by someone with the Surgery Talent.',
-        'Your blow crashes into your opponent’s skull, stunning him until the end of his next turn. On his next turn after that he must pass a Hard(-20 %) T test to recover, re - rolling each turn until he succeeds. The blow has fractured his skull, causing a splinter of bone to press into his brain and starting a slow bleeding between the brain and the skull that will keep expanding, eventually killing him unless pressure is relieved. He’ll suffer a cumulative penalty of –5 % to his WS, BS, Ag, Int and Fel every two hours, falling into a coma when any of those characteristics reaches zero, dying within another d10 / 2 days. The only effective cure is a procedure called trepanation, which involves removing a piece of the skull by drilling or boring into it, thus relieving the pressure and allowing access to remove the splinter. This requires at least one hour and a Challenging(-10 %) Heal test with theSurgery Talent. If successful, a metal plate of some kind, usually a silver coin that has been hammered flat and polished, is used to cover the hole, nailed directly to the surrounding bone and then covered with a flap of the scalp. If already in a coma, your opponent will then wake up in another d10 / 2 days, otherwise regaining his lost characteristics at a rate of 5 % per day. Failure will still relieve the pressure but causes brain damage, reducing WS, BS, Ag, Int and Fel by –10 % permanently. Regardless of outcome, your opponent will have to pass a Challenging(-10 %) T test immediately after the surgery or contract a serious infection, killing him within d10 days unless a successful Shallyan Cure Disease spell is performed.',
+        'Your blow connects to your opponent’s head with a sickening thud. Concussed, he falls to the ground, counting as helpless until he can make a Hard(-20 %) constitution saving throw to regain full consciousness, starting to roll during his next turn, re - rolling each turn until he succeeds. For the rest of this battle he will suffer a –10 % penalty to his WS, BS and Ag due to dizziness and nausea. He must also make a Challenging(-10 %) test or suffer short - term amnesia, not remembering a thing about the battle or how he ended up in it.',
+        'Your weapon fractures your opponent’s nose, stunning him until the end of his next turn as he sees bright flashes and spits blood. On his next turn after that he must pass a Challenging(-10 %) constitution saving throw to recover, re - rolling each turn until he succeeds. There is a 50 % chance that the nose will be so smashed it reduces his Fel by d10 % unless magically healed or set with a successful Heal test by someone with the Surgery Talent.',
+        'Your blow crashes into your opponent’s skull, stunning him until the end of his next turn. On his next turn after that he must pass a Hard(-20 %) constitution saving throw to recover, re - rolling each turn until he succeeds. The blow has fractured his skull, causing a splinter of bone to press into his brain and starting a slow bleeding between the brain and the skull that will keep expanding, eventually killing him unless pressure is relieved. He’ll suffer a cumulative penalty of –5 % to his WS, BS, Ag, Int and Fel every two hours, falling into a coma when any of those characteristics reaches zero, dying within another d10 / 2 days. The only effective cure is a procedure called trepanation, which involves removing a piece of the skull by drilling or boring into it, thus relieving the pressure and allowing access to remove the splinter. This requires at least one hour and a Challenging(-10 %) Heal test with theSurgery Talent. If successful, a metal plate of some kind, usually a silver coin that has been hammered flat and polished, is used to cover the hole, nailed directly to the surrounding bone and then covered with a flap of the scalp. If already in a coma, your opponent will then wake up in another d10 / 2 days, otherwise regaining his lost characteristics at a rate of 5 % per day. Failure will still relieve the pressure but causes brain damage, reducing WS, BS, Ag, Int and Fel by –10 % permanently. Regardless of outcome, your opponent will have to pass a Challenging(-10 %) constitution saving throw immediately after the surgery or contract a serious infection, killing him within d10 days unless a successful Shallyan Cure Disease spell is performed.',
         'Your weapon breaks your opponent’s jaw. He counts as stunned until the end of his next turn and then suffers a penalty of –20 % to his WS and BS for the remainder of the battle due to the pain. The jaw will have to be wired or otherwise tightly shut until knitted together in d10 / 2 weeks, forcing your opponent to eat through a straw until then. There is also 50 % risk that he’ll have lost several teeth, in which case his Fel will be reduced by - 5 % unless he already had missing or unsightly teeth(GM’s call).',
-        'Your weapon crashes into your opponent’s larynx at the top of the windpipe, causing a spasmed airway. He gasps for breath, suffering a cumulative penalty of –10 % to his WS, BS, Ag and S each turn until he makes a Challenging(-10 %) T test to immediately regain the lost characteristics points, rolling at the start of each turn. If any of the characteristics reaches zero he falls unconscious from lack of air. If not making his roll within another TB turns he dies from lack of air.',
-        'Your weapon crushed the bony orbit surrounding your opponent’s eyeball, causing a blow - out fracture, pushing bone splinters into the sinus and trapping some of the muscles controlling eye movement. He counts as stunned until the end of his next turn. On his next turn after that he must pass a Challenging(-10 %) T test to recover, re - rolling each turn until he succeeds. Unless magical healing is received within d10 days the eye will be effectively lost and he must reduce any BS or sight - based Perception test by half, including any bonus from Talents such as Excellent Vision or Sharpshooter.',
-        'Your blow tears loose your opponent’s jaw. He must make an immediate Challenging(-10 %) T test or fall unconscious. If successful, he can only stumble around and try to hold his dangling jaw in place, counting as helpless for the duration of the battle. If he survives, either a Challenging(-10 %) Heal test with the Surgery Talent or magical healing is needed reattach the jaw. It must be done within d10 / 2 days, otherwise necessitating amputation of the whole lower jaw. Apart from looking absolutely hideous and being forced to feed only on liquids and losing all speech, your opponent must also reduce his Fel by –30 %.',
+        'Your weapon crashes into your opponent’s larynx at the top of the windpipe, causing a spasmed airway. He gasps for breath, suffering a cumulative penalty of –10 % to his WS, BS, Ag and S each turn until he makes a Challenging(-10 %) constitution saving throw to immediately regain the lost characteristics points, rolling at the start of each turn. If any of the characteristics reaches zero he falls unconscious from lack of air. If not making his roll within another TB turns he dies from lack of air.',
+        'Your weapon crushed the bony orbit surrounding your opponent’s eyeball, causing a blow - out fracture, pushing bone splinters into the sinus and trapping some of the muscles controlling eye movement. He counts as stunned until the end of his next turn. On his next turn after that he must pass a Challenging(-10 %) constitution saving throw to recover, re - rolling each turn until he succeeds. Unless magical healing is received within d10 days the eye will be effectively lost and he must reduce any BS or sight - based Perception test by half, including any bonus from Talents such as Excellent Vision or Sharpshooter.',
+        'Your blow tears loose your opponent’s jaw. He must make an immediate Challenging(-10 %) constitution saving throw or fall unconscious. If successful, he can only stumble around and try to hold his dangling jaw in place, counting as helpless for the duration of the battle. If he survives, either a Challenging(-10 %) Heal test with the Surgery Talent or magical healing is needed reattach the jaw. It must be done within d10 / 2 days, otherwise necessitating amputation of the whole lower jaw. Apart from looking absolutely hideous and being forced to feed only on liquids and losing all speech, your opponent must also reduce his Fel by –30 %.',
         'Your weapon smashes into the junction between head and neck, breaking your opponent’s spine. He falls unconscious and will die within d10 / 2 hours from loss of air due to damage to the breathing centre in the upper part of the spinal cord. Magical healing can save his life but will be Hard(-20 %) and will still leave him paralysed from the neck down and gains him d10 / 2 IP due to the horrible experience of being paralysed and helpless while slowly suffocating to death.',
         'Your weapon hits your opponent in the forehead and shatters his skull like an eggshell. He immediately falls to the ground and spends the remainder of his life(d10 rounds) twitching and jerking.',
         'Your weapon smashes into your opponent’s head and bursts it like a melon, spattering you with blood and grey matter. His death is immediate',
     ],
     leg: [
         "Your weapon glances off your opponent's knee, sending him off balance. He’ll suffer a penalty of –10% to his WS until the end of his next turn. If he survives the battle his knee will always ache 24 hours before a storm.",
-        "Your weapon glances off your opponent's hip, forcing him to pass a Challenging (-10%) Ag test to avoid falling unceremoniously on his rump.",
+        "Your weapon glances off your opponent's hip, forcing him to pass a DC15 Ag test to avoid falling unceremoniously on his rump.",
         "Your weapon strikes the side of your opponent's knee, twisting it inward. He'll suffer a penalty of - 20 % to his WS until the end of his next turn as he tries to avoid putting any weight on that leg.",
-        "Your weapon glances off your opponent's shin, forcing him to pass a Hard (-20%) WP test or drop everything and count as helpless until the end of his next turn as he jumps around on one leg, grasping it with both hands. Passing the test will result in him suffering a penalty of -20% to his WS until the end of his next turn as he staggers and gasps from the pain.",
-        "Your blow badly bruises your opponent's thigh, driving him to his knees, counting as having fallen to the ground. M is reduced by -1 and any Dodge Blow and WS tests willcount as Challenging (-10%) until the end of the battle.",
+        "Your weapon glances off your opponent's shin, forcing him to pass a DC20 constitution saving throw or drop everything and count as helpless until the end of his next turn as he jumps around on one leg, grasping it with both hands. Passing the test will result in him suffering a penalty of -20% to his WS until the end of his next turn as he staggers and gasps from the pain.",
+        "Your blow badly bruises your opponent's thigh, driving him to his knees, counting as having fallen to the ground. M is reduced by -1 and any Dodge Blow and WS tests willcount as DC15 until the end of the battle.",
         "Your blow crashes into your opponent's hip, chipping one wing of the pelvis and felling him to the ground. Due to the pain he'll suffer a penalty of - 20 % to his WS and unable to rise for d10 / 2 turns.",
-        "Your weapon smashes your opponent's great toe, squashing it almost flat. All WS and Dodge Blow tests will count as Hard (-20%) until the end of the battle. His M will be reduced by -1 and any Dodge Blow tests will continue to be counted as Challenging (-10%) until the toe has healed in two weeks.",
-        "Your blow crushes your opponent's foot, fracturing several of the bones between ankle and toes. He falls to the ground and will be unable to put any weight on that foot and thus to rise for the duration of the battle. He'll be effectively one - legged until the bones have healed in four weeks. He must then make a Challenging(-10 %) T test or suffer a permanent - 1 reduction to his M due to the bones not setting properly. Magical healing performed before the bones have healed will negate the need for this test.",
-        "Your blow shatters your opponent's ankle, felling him to the ground and making the foot stand out from the lower leg at a strange angle. He’ll be screaming and helpless for d10/2 turns unless he can pass a Hard (-20%) WP test, in which case he'll only count as stunned rather than helpless. He’ll be unable to put any weight on the foot until it has healed in four weeks. Unless the ankle is set correctly by a successful Heal test, it’ll heal crooked, causing a penalty of –1 to M and making all Dodge Blow tests count as Challenging (-10 %) ever after.",
-        "Your blow smashes your opponent's shin, shattering the shinbone into several fragments and breaking the fibula, the outer of the two long bones in the lower leg, as well, fragments piercing through the skin. Your opponent falls to the ground, helpless and blind with pain for d10 turns, then suffering a penalty of –10% to all tests for the remainder of the battle. He'll be unable to rise afterwards and will have to pass a Hard(-20 %) T test or suffer infection in the open fracture within d10 days, causing death in another d10 days unless amputation is performed. A successful Shallyan Cure Disease spell will save his life but the leg will remain useless unless magically healed, which will require a Hard(-20 %) spell test due to the mess of bone shards, damaged nerves and blood vessels inside the leg.",
+        "Your weapon smashes your opponent's great toe, squashing it almost flat. All WS and Dodge Blow tests will count as DC20 until the end of the battle. His M will be reduced by -1 and any Dodge Blow tests will continue to be counted as DC15 until the toe has healed in two weeks.",
+        "Your blow crushes your opponent's foot, fracturing several of the bones between ankle and toes. He falls to the ground and will be unable to put any weight on that foot and thus to rise for the duration of the battle. He'll be effectively one - legged until the bones have healed in four weeks. He must then make a Challenging(-10 %) constitution saving throw or suffer a permanent - 1 reduction to his M due to the bones not setting properly. Magical healing performed before the bones have healed will negate the need for this test.",
+        "Your blow shatters your opponent's ankle, felling him to the ground and making the foot stand out from the lower leg at a strange angle. He’ll be screaming and helpless for d10/2 turns unless he can pass a DC20 constitution saving throw, in which case he'll only count as stunned rather than helpless. He’ll be unable to put any weight on the foot until it has healed in four weeks. Unless the ankle is set correctly by a successful Heal test, it’ll heal crooked, causing a penalty of –1 to M and making all Dodge Blow tests count as Challenging (-10 %) ever after.",
+        "Your blow smashes your opponent's shin, shattering the shinbone into several fragments and breaking the fibula, the outer of the two long bones in the lower leg, as well, fragments piercing through the skin. Your opponent falls to the ground, helpless and blind with pain for d10 turns, then suffering a penalty of –10% to all tests for the remainder of the battle. He'll be unable to rise afterwards and will have to pass a Hard(-20 %) constitution saving throw or suffer infection in the open fracture within d10 days, causing death in another d10 days unless amputation is performed. A successful Shallyan Cure Disease spell will save his life but the leg will remain useless unless magically healed, which will require a Hard(-20 %) spell test due to the mess of bone shards, damaged nerves and blood vessels inside the leg.",
         "Your blow shatters your opponent's kneecap. He falls helpless to the ground, clutching his injury as his throaty screams echo across the battlefield for d10 turns and will then be unable to rise and suffers a penalty of -20% to all tests for the remainder of the battle. Unless magical healing is provided he'll be at - 2 to his M and counting all Dodge Blow tests as Hard (-20 %) for the rest of his life due to a bad limp and stiffness of the joint.",
-        "Your blow connects solidly with the middle of your opponent's leg. With an audible popping sound, the knee bends the wrong way, large ligaments in the knee severed. Your opponent falls to the ground, helpless from pain for the rest of the battle, and must make a Hard (-20%) WP test each turn or fall unconscious. Only magical healing, which will count as Very Hard (-30%), will restore function of the knee. Otherwise he'll be at half M for the rest of his life due to a seriously unstable knee joint, counting all his Dodge Blow tests as Very Hard(-30 %).",
+        "Your blow connects solidly with the middle of your opponent's leg. With an audible popping sound, the knee bends the wrong way, large ligaments in the knee severed. Your opponent falls to the ground, helpless from pain for the rest of the battle, and must make a DC20 constitution saving throw each turn or fall unconscious. Only magical healing, which will count as DC25, will restore function of the knee. Otherwise he'll be at half M for the rest of his life due to a seriously unstable knee joint, counting all his Dodge Blow tests as Very Hard(-30 %).",
         "Your weapon smashes into your opponent's thigh, fracturing the thighbone and lacerating the femoral artery. Your opponent falls unconscious in an undignified heap onthe ground as his leg visibly swells up and goes purple before your eyes. Death will occur unless a tourniquet (requiring two full turns and a successful Heal test) or magical healing is provided within 2d10 turns and even that will not save the leg which will have to be amputated or the patient will die from massive gangrene in the bloodless leg, regardless of any magical healing.",
         "Your weapon smashes into your opponent's hip, breaking the thighbone near the joint. The sharp end of the bone lacerates the large artery and tears out from the skin as your opponent falls, a white spear of bone sticking out from his hip. He immediately falls unconscious and expires inevitably in a spreading pool of blood within d10/2 turns.",
         "Your weapon smashes your opponent's pelvis, causing major trauma to nerves and major arteries. He crumples to the ground in a moaning heap and dies inevitably from shock and bleeding within one turn.",
