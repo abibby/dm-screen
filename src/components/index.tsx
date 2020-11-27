@@ -1,6 +1,8 @@
 import { FunctionalComponent, h } from 'preact'
 import { useCallback, useEffect, useState } from 'preact/hooks'
 import styled from 'styled-components'
+import { Store, get, set, keys } from 'idb-keyval'
+import { EventEmitter } from 'events'
 
 export const Title = styled.h2`
     background-color: black;
@@ -57,4 +59,43 @@ export const Select: FunctionalComponent<SelectProps> = props => {
             })}
         </select>
     )
+}
+
+const permStore = new Store()
+const permEvents = new EventEmitter()
+
+export function usePermanentState<T>(
+    key: string,
+    initialState: T,
+): [T, (value: T | ((previousState: T) => T)) => void] {
+    const [value, setValue] = useState(initialState)
+
+    useEffect(() => {
+        const c = async (value: T) => {
+            setValue(value)
+            await set(key, value, permStore)
+        }
+        permEvents.on(key, c)
+        keys(permStore).then(async keys => {
+            if (keys.find(k => k === key)) {
+                setValue(await get(key, permStore))
+            }
+        })
+        return () => {
+            return permEvents.off(key, c)
+        }
+    }, [])
+
+    return [
+        value,
+        useCallback(
+            newValue => {
+                if (newValue instanceof Function) {
+                    newValue = newValue(value)
+                }
+                permEvents.emit(key, newValue)
+            },
+            [key, permEvents],
+        ),
+    ]
 }

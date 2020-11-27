@@ -7,6 +7,7 @@ import { EstablishmentGenerator } from 'components/establishment-generator'
 import { RandomTable } from 'components/random-table'
 import { carousing } from 'lists/carousing'
 import { Crit } from 'components/crit'
+import { Weather } from 'components/weather'
 
 const Grid = styled.div`
     display: grid;
@@ -51,6 +52,9 @@ render(
         </Section>
         <Section>
             <RandomTable title='Carousing' table={carousing} />
+        </Section>
+        <Section>
+            <Weather />
         </Section>
     </Grid>,
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion

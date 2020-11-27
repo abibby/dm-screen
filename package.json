@@ -23,6 +23,8 @@
   },
   "dependencies": {
     "@zwzn/spicy": "^1.0.1",
+    "events": "^3.2.0",
+    "idb-keyval": "^3.2.0",
     "preact": "^10.5.2",
     "styled-components": "^5.2.0"
   }
