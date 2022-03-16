@@ -31,7 +31,7 @@ const EffectListElement = styled.li<{ active: boolean }>`
             : undefined}
 `
 
-// (test|[–-]\d+%)
+// (test|-\d+ ?%)
 
 export const Crit: FunctionalComponent = props => {
     const [attackType, setAttackType] = useState('arrow-bolt')
