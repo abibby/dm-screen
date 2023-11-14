@@ -1,13 +1,13 @@
 import { h, render } from 'preact'
-import { CharacterGenerator } from 'components/character-generator'
-import { Checks } from 'components/checks'
+import { CharacterGenerator } from '@/components/character-generator'
+import { Checks } from '@/components/checks'
 import styled, { css } from 'styled-components'
-import { Travel } from 'components/travel'
-import { EstablishmentGenerator } from 'components/establishment-generator'
-import { RandomTable } from 'components/random-table'
-import { carousing } from 'lists/carousing'
-import { Crit } from 'components/crit'
-import { Weather } from 'components/weather'
+import { Travel } from '@/components/travel'
+import { EstablishmentGenerator } from '@/components/establishment-generator'
+import { RandomTable } from '@/components/random-table'
+import { carousing } from '@/lists/carousing'
+import { Crit } from '@/components/crit'
+import { Weather } from '@/components/weather'
 
 const Grid = styled.div`
     display: grid;

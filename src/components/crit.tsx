@@ -1,6 +1,6 @@
 import { FunctionalComponent, h } from 'preact'
 import { useState } from 'preact/hooks'
-import { Select, Title, useDie } from 'components'
+import { Select, Title, useDie } from '@/components'
 import { bindValue } from '@zwzn/spicy'
 import {
     AttackType,
@@ -9,7 +9,7 @@ import {
     attackTypes,
     bodyParts,
     typeMap,
-} from 'lists/crit-hit'
+} from '@/lists/crit-hit'
 import styled, { css } from 'styled-components'
 
 const HPInput = styled.input`
@@ -31,7 +31,7 @@ const EffectListElement = styled.li<{ active: boolean }>`
             : undefined}
 `
 
-// (test|-\d+ ?%)
+// (test|[-+]\d+ ?%)
 
 export const Crit: FunctionalComponent = props => {
     const [attackType, setAttackType] = useState('arrow-bolt')

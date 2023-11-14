@@ -1,8 +1,8 @@
 import { FunctionalComponent, h } from 'preact'
 import { useCallback, useEffect, useState } from 'preact/hooks'
-import { generate } from 'lists'
-import { Title } from 'components'
-import { wtfEstablishment } from 'lists/wtf-establishment'
+import { generate } from '@/lists'
+import { Title } from '@/components'
+import { wtfEstablishment } from '@/lists/wtf-establishment'
 
 export const EstablishmentGenerator: FunctionalComponent = props => {
     const [text, setText] = useState('')

@@ -1,4 +1,4 @@
-import { Table, Title } from 'components'
+import { Table, Title } from '@/components'
 import { FunctionalComponent, h } from 'preact'
 
 type ArrayMap<K, V> = [K, V][]

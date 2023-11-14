@@ -29,7 +29,7 @@ function clamp(value: number, max: number, min: number): number {
     return Math.max(Math.min(Math.round(value), max), min)
 }
 
-function li(
+function linearInterpolate(
     val: number,
     min: number,
     max: number,
@@ -48,7 +48,8 @@ export function severity(
 ): number {
     const val =
         14 ** (1 - currentHP / maxHP) +
-        li(maxHP, 20, 500, 12, 1) ** (clamp(d100, 100, 0) / 100) -
+        linearInterpolate(maxHP, 20, 500, 12, 1) **
+            (clamp(d100, 100, 0) / 100) -
         2
     return clamp(Math.round(val), 14, 0)
 }

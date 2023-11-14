@@ -1,4 +1,4 @@
-import { Corpus } from 'lists'
+import { Corpus } from '@/lists'
 import { alignments } from './alignments'
 import { gods } from './gods'
 import { races } from './races'

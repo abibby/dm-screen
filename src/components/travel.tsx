@@ -1,5 +1,5 @@
 import { bindValue } from '@zwzn/spicy'
-import { Table, Title } from 'components'
+import { Table, Title } from '@/components'
 import { FunctionalComponent, h } from 'preact'
 import { useState } from 'preact/hooks'
 import styled from 'styled-components'

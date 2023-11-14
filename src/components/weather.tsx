@@ -1,5 +1,5 @@
 import { FunctionalComponent, h } from 'preact'
-import { Title, usePermanentState } from 'components'
+import { Title, usePermanentState } from '@/components'
 import { useCallback } from 'preact/hooks'
 
 const conditions = [

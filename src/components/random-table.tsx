@@ -1,6 +1,6 @@
 import { FunctionalComponent, h } from 'preact'
-import { randomFromList, totalWeight, WeightedList } from 'lists'
-import { Title, useDie } from 'components'
+import { randomFromList, totalWeight, WeightedList } from '@/lists'
+import { Title, useDie } from '@/components'
 import { bindValue } from '@zwzn/spicy'
 
 interface Props {

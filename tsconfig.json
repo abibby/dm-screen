@@ -1,12 +1,15 @@
 {
     "compilerOptions": {
         "strict": true,
+        "target": "ESNext",
+        "moduleResolution": "Node",
         "noUnusedLocals": true,
         "jsx": "react",
         "jsxFactory": "h",
         "baseUrl": "./",
         "paths": {
-            "*": ["src/*"]
-        }
+            "@/*": ["src/*"]
+        },
+        "skipLibCheck": true
     }
 }
